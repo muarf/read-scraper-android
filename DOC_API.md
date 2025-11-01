@@ -163,6 +163,7 @@ Headers: X-API-Key: votre_cle_api
 - `generating_pdf`: Génération du PDF en cours
 - `completed`: Terminé avec succès
 - `failed`: Échec du traitement
+- `cancelled`: Job annulé par l'administrateur (non traité par le queue manager)
 
 **Champs supplémentaires dans la réponse:**
 - `current_step`: Étape actuelle du traitement (si disponible)
@@ -288,7 +289,34 @@ Headers: X-API-Key: votre_cle_api
 
 ---
 
-### 7. Lister les screenshots de debug
+### 7. Annuler un job en cours
+
+Arrête et annule un job en attente ou en cours de traitement.
+
+```http
+POST /api/v1/job/{job_id}/cancel
+Headers: X-API-Key: votre_cle_api
+```
+
+**Réponse (200):**
+```json
+{
+  "message": "Job abc123 annulé avec succès",
+  "previous_status": "processing",
+  "new_status": "cancelled"
+}
+```
+
+**Erreurs:**
+- `400`: Le job ne peut pas être annulé (seuls les jobs `pending` ou `processing` peuvent être annulés)
+- `404`: Job introuvable
+- `500`: Erreur lors de l'annulation
+
+**Note:** Un job annulé ne sera plus traité par le queue manager et sera exclu des requêtes de jobs en attente. Cette route nécessite une clé API valide (admin ou standard).
+
+---
+
+### 8. Lister les screenshots de debug
 
 Liste les screenshots de debug disponibles pour un job.
 
@@ -510,6 +538,10 @@ Headers: X-API-Key: votre_cle_api_admin
   "status": "pending"
 }
 ```
+
+**Erreurs:**
+- `400`: Le job n'est pas en état `failed`
+- `404`: Job introuvable
 
 ---
 
@@ -742,7 +774,7 @@ Pour toute question ou problème, consultez les logs système dans le répertoir
 
 ## 🔄 Mise à jour
 
-Cette documentation est mise à jour régulièrement. Dernière mise à jour : Novembre 2024
+Cette documentation est mise à jour régulièrement. Dernière mise à jour : Novembre 2025
 
 **Nouvelles fonctionnalités ajoutées:**
 - **Détection automatique** : L'API accepte soit une URL, soit des termes de recherche directement (sans URL)
@@ -752,4 +784,7 @@ Cette documentation est mise à jour régulièrement. Dernière mise à jour : N
 - Statuts détaillés avec `current_step` et `step_description` pour suivre précisément l'évolution du traitement
 - Nettoyage automatique des screenshots de debug après completion des jobs
 - UI améliorée pour modifier les termes de recherche en cas d'échec
+- **Annulation de jobs** : Route `/api/v1/job/{job_id}/cancel` pour arrêter un job en cours de traitement (accessible avec n'importe quelle clé API valide)
+- **Correction encodage PDF** : Amélioration de la gestion UTF-8 pour les accents dans les PDFs générés
+- **Route publique PDF** : Route `/article/{article_id}/pdf` pour télécharger les PDFs sans authentification
 

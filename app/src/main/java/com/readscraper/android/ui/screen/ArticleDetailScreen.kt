@@ -237,6 +237,38 @@ fun ArticleDetailScreen(
                         // Désactiver le cache pour éviter les problèmes
                         settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
                         
+                        // Ajouter WebChromeClient pour capturer les erreurs JS et console
+                        webChromeClient = object : android.webkit.WebChromeClient() {
+                            override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage?): Boolean {
+                                val level = consoleMessage?.messageLevel()
+                                val message = consoleMessage?.message()
+                                val sourceId = consoleMessage?.sourceId()
+                                val lineNumber = consoleMessage?.lineNumber()
+                                
+                                when (level) {
+                                    android.webkit.ConsoleMessage.MessageLevel.ERROR -> {
+                                        Log.e("ArticleDetail", "JS Console ERROR: $message (at $sourceId:$lineNumber)")
+                                    }
+                                    android.webkit.ConsoleMessage.MessageLevel.WARNING -> {
+                                        Log.w("ArticleDetail", "JS Console WARNING: $message (at $sourceId:$lineNumber)")
+                                    }
+                                    android.webkit.ConsoleMessage.MessageLevel.LOG,
+                                    android.webkit.ConsoleMessage.MessageLevel.INFO -> {
+                                        Log.d("ArticleDetail", "JS Console: $message")
+                                    }
+                                    else -> {
+                                        Log.d("ArticleDetail", "JS Console ($level): $message")
+                                    }
+                                }
+                                return true
+                            }
+                            
+                            override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                                super.onProgressChanged(view, newProgress)
+                                Log.d("ArticleDetail", "Progress WebView: $newProgress%")
+                            }
+                        }
+                        
                         Log.d("ArticleDetail", "Chargement URL dans WebView: $articleUrl")
                         Log.d("ArticleDetail", "WebView settings - JS: ${settings.javaScriptEnabled}, DOMStorage: ${settings.domStorageEnabled}, UserAgent: ${settings.userAgentString}")
                         
