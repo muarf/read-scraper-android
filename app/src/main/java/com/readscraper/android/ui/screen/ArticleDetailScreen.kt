@@ -150,7 +150,7 @@ fun ArticleDetailScreen(
                     )
                 }
                 
-                HorizontalDivider()
+                Divider()
             }
             
             // WebView pour afficher le contenu HTML de l'article
