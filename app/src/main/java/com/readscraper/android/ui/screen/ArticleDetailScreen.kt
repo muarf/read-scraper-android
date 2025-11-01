@@ -152,7 +152,7 @@ fun ArticleDetailScreen(
                 fontWeight = FontWeight.Bold
             )
             
-            val articleUrl = "http://104.244.74.191:5000/read/article/${article.id}"
+            val articleUrl = "http://104.244.74.191/read/article/${article.id}"
             Log.d("ArticleDetail", "Chargement article depuis URL: $articleUrl")
             
             AndroidView(
@@ -344,7 +344,7 @@ private fun downloadPdf(
                         Log.w("ArticleDetail", "Aucune application trouvée pour ouvrir le PDF")
                         Toast.makeText(
                             context,
-                            "PDF téléchargé dans: $fileName\nAucune application de lecture PDF trouvée",
+                            "PDF téléchargé dans: $fileName\nAucune application de lecture PDF trouvée\n\nInstallez MuPDF (open source, sans pub) depuis F-Droid ou Play Store",
                             Toast.LENGTH_LONG
                         ).show()
                     }

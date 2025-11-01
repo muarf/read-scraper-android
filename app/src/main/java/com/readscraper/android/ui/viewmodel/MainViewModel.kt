@@ -21,7 +21,7 @@ data class UiState(
     val searchInput: String = "",
     val isPolling: Boolean = false,
     val apiKey: String? = null,
-    val apiUrl: String = "http://104.244.74.191:5000"
+    val apiUrl: String = "http://104.244.74.191"
 )
 
 class MainViewModel(
@@ -46,7 +46,7 @@ class MainViewModel(
         }
         viewModelScope.launch {
             preferencesManager.apiUrl.collect { url ->
-                _uiState.value = _uiState.value.copy(apiUrl = url ?: "http://104.244.74.191:5000")
+                _uiState.value = _uiState.value.copy(apiUrl = url ?: "http://104.244.74.191")
             }
         }
     }

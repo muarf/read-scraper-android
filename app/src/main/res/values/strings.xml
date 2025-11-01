@@ -19,7 +19,7 @@
     <string name="api_key">Clé API</string>
     <string name="save">Enregistrer</string>
     <string name="api_url">URL de l\'API</string>
-    <string name="api_url_default">http://104.244.74.191:5000</string>
+    <string name="api_url_default">http://104.244.74.191</string>
     <string name="search_on_press">Rechercher sur la presse</string>
 </resources>
 
