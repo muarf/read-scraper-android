@@ -64,17 +64,6 @@ fun ArticlesScreen(
                 }
             }
         }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(uiState.articles) { article ->
-                    ArticleItem(article = article)
-                }
-            }
-        }
     }
 }
 
