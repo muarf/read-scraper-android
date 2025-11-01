@@ -319,7 +319,8 @@ private fun downloadPdf(
                 Log.e("ArticleDetail", "Impossible de télécharger via API: apiKey est null")
             }
             
-            if (pdfBytes == null || pdfBytes.isEmpty()) {
+            val finalPdfBytes = pdfBytes
+            if (finalPdfBytes == null || finalPdfBytes.isEmpty()) {
                 Log.e("ArticleDetail", "PDF non disponible ou vide")
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
                     Toast.makeText(
@@ -339,7 +340,7 @@ private fun downloadPdf(
             Log.d("ArticleDetail", "Écriture du PDF dans: ${file.absolutePath}")
             
             try {
-                java.io.FileOutputStream(file).use { it.write(pdfBytes) }
+                java.io.FileOutputStream(file).use { it.write(finalPdfBytes) }
                 Log.d("ArticleDetail", "PDF écrit avec succès, taille fichier: ${file.length()} bytes")
             } catch (e: Exception) {
                 Log.e("ArticleDetail", "Erreur lors de l'écriture du PDF", e)
