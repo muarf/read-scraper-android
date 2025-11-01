@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Presse Scraper</string>
+    <string name="search_terms_hint">Entrez l\'URL ou les termes de recherche</string>
+    <string name="search_button">Scraper</string>
+    <string name="retry_search">Relancer la recherche</string>
+    <string name="modify_search_terms">Modifier les termes de recherche</string>
+    <string name="download_pdf">Télécharger le PDF</string>
+    <string name="current_step">Étape actuelle</string>
+    <string name="waiting_start">Initialisation...</string>
+    <string name="waiting_scraping_start">En attente de démarrage du scraping...</string>
+    <string name="no_results">Aucun résultat trouvé. Essayez avec des termes de recherche différents :</string>
+    <string name="debug_console">Console de Debug</string>
+    <string name="show_hide_debug">Afficher/Cacher Debug</string>
+    <string name="clear_debug">Vider</string>
+    <string name="screenshots">Screenshots</string>
+    <string name="article_history">Historique des articles</string>
+    <string name="settings">Paramètres</string>
+    <string name="api_key">Clé API</string>
+    <string name="save">Enregistrer</string>
+    <string name="api_url">URL de l\'API</string>
+    <string name="api_url_default">http://104.244.74.191:5000</string>
+    <string name="search_on_press">Rechercher sur la presse</string>
+</resources>
+
