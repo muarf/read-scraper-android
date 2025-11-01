@@ -89,9 +89,6 @@ dependencies {
     // DataStore (pour stocker l'API key)
     implementation("androidx.datastore:datastore-preferences:1.0.0")
     
-    // PDF Viewer
-    implementation("com.github.barteksc:android-pdf-viewer:3.2.0-beta.1")
-    
     // Debug
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
