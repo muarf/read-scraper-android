@@ -145,104 +145,65 @@ fun ArticleDetailScreen(
             
             Divider()
             
-            // Afficher le contenu HTML de l'article
-            if (article.html_content != null && article.html_content.isNotBlank()) {
-                Text(
-                    text = "Contenu de l'article",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                
-                Log.d("ArticleDetail", "Chargement HTML pour article ${article.id}, longueur: ${article.html_content.length}")
-                
-                AndroidView(
-                    factory = { ctx ->
-                        WebView(ctx).apply {
-                            Log.d("ArticleDetail", "Création WebView")
-                            webViewClient = object : WebViewClient() {
-                                override fun onPageFinished(view: WebView?, url: String?) {
-                                    super.onPageFinished(view, url)
-                                    Log.d("ArticleDetail", "Page WebView chargée: $url")
-                                }
-                                
-                                override fun onReceivedError(view: WebView?, errorCode: Int, description: String?, failingUrl: String?) {
-                                    super.onReceivedError(view, errorCode, description, failingUrl)
-                                    Log.e("ArticleDetail", "Erreur WebView: $errorCode - $description - $failingUrl")
-                                }
+            // Afficher l'article directement depuis l'URL
+            Text(
+                text = "Contenu de l'article",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            
+            val articleUrl = "http://104.244.74.191:5000/read/article/${article.id}"
+            Log.d("ArticleDetail", "Chargement article depuis URL: $articleUrl")
+            
+            AndroidView(
+                factory = { ctx ->
+                    WebView(ctx).apply {
+                        Log.d("ArticleDetail", "Création WebView")
+                        webViewClient = object : WebViewClient() {
+                            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                                super.onPageStarted(view, url, favicon)
+                                Log.d("ArticleDetail", "Début chargement page: $url")
                             }
                             
-                            settings.javaScriptEnabled = true
-                            settings.domStorageEnabled = true
-                            settings.loadWithOverviewMode = true
-                            settings.useWideViewPort = true
-                            settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                            settings.builtInZoomControls = true
-                            settings.displayZoomControls = false
+                            override fun onPageFinished(view: WebView?, url: String?) {
+                                super.onPageFinished(view, url)
+                                Log.d("ArticleDetail", "Page WebView chargée: $url")
+                            }
                             
-                            // Charger le contenu HTML avec un style de base
-                            val htmlContent = """
-                                <!DOCTYPE html>
-                                <html>
-                                <head>
-                                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                                    <style>
-                                        body {
-                                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                                            padding: 16px;
-                                            line-height: 1.6;
-                                            color: #333;
-                                            max-width: 100%;
-                                            word-wrap: break-word;
-                                            background-color: #ffffff;
-                                            margin: 0;
-                                        }
-                                        img {
-                                            max-width: 100%;
-                                            height: auto;
-                                            display: block;
-                                            margin: 10px 0;
-                                        }
-                                        a {
-                                            color: #0066cc;
-                                            text-decoration: none;
-                                        }
-                                        p {
-                                            margin: 10px 0;
-                                        }
-                                        h1, h2, h3, h4, h5, h6 {
-                                            margin-top: 20px;
-                                            margin-bottom: 10px;
-                                        }
-                                    </style>
-                                </head>
-                                <body>
-                                    ${article.html_content}
-                                </body>
-                                </html>
-                            """.trimIndent()
+                            override fun onReceivedError(view: WebView?, request: android.webkit.WebResourceRequest?, error: android.webkit.WebResourceError?) {
+                                super.onReceivedError(view, request, error)
+                                val errorCode = error?.errorCode ?: -1
+                                val description = error?.description?.toString() ?: "Unknown"
+                                val failingUrl = request?.url?.toString() ?: "Unknown"
+                                Log.e("ArticleDetail", "Erreur WebView: $errorCode - $description - $failingUrl")
+                            }
                             
-                            Log.d("ArticleDetail", "Chargement HTML dans WebView, baseURL: http://104.244.74.191:5000/")
-                            loadDataWithBaseURL("http://104.244.74.191:5000/", htmlContent, "text/html", "UTF-8", null)
+                            override fun onReceivedHttpError(view: WebView?, request: android.webkit.WebResourceRequest?, errorResponse: android.webkit.WebResourceResponse?) {
+                                super.onReceivedHttpError(view, request, errorResponse)
+                                val statusCode = errorResponse?.statusCode ?: -1
+                                val url = request?.url?.toString() ?: "Unknown"
+                                Log.e("ArticleDetail", "Erreur HTTP WebView: $statusCode pour $url")
+                            }
                         }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight()
-                        .weight(1f)
-                )
-            } else {
-                // Si pas de contenu HTML, proposer d'ouvrir dans le navigateur
-                OutlinedButton(
-                    onClick = {
-                        val articleUrl = "http://104.244.74.191:5000/read/article/${article.id}"
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(articleUrl))
-                        context.startActivity(intent)
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Ouvrir l'article dans le navigateur")
-                }
-            }
+                        
+                        settings.javaScriptEnabled = true
+                        settings.domStorageEnabled = true
+                        settings.loadWithOverviewMode = true
+                        settings.useWideViewPort = true
+                        settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                        settings.builtInZoomControls = true
+                        settings.displayZoomControls = false
+                        settings.setSupportZoom(true)
+                        
+                        Log.d("ArticleDetail", "Chargement URL dans WebView: $articleUrl")
+                        loadUrl(articleUrl)
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .weight(1f)
+            )
             }
         }
     }
@@ -258,47 +219,12 @@ private fun downloadPdf(
 ) {
     Log.d("ArticleDetail", "downloadPdf appelé - articleId: $articleId, pdfPath: $pdfPath, apiKey présent: ${apiKey != null}")
     
-    scope.launch {
+    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
         try {
             var pdfBytes: ByteArray? = null
             
-            if (pdfPath != null) {
-                // Essayer d'abord avec l'URL statique
-                try {
-                    val staticUrl = if (pdfPath.startsWith("http")) {
-                        pdfPath
-                    } else {
-                        // L'URL statique utilise le port 5000 : http://104.244.74.191:5000/static/...
-                        "http://104.244.74.191:5000${if (pdfPath.startsWith("/")) pdfPath else "/$pdfPath"}"
-                    }
-                    
-                    Log.d("ArticleDetail", "Tentative téléchargement PDF depuis URL statique: $staticUrl")
-                    
-                    val url = java.net.URL(staticUrl)
-                    val connection = url.openConnection() as java.net.HttpURLConnection
-                    connection.requestMethod = "GET"
-                    connection.connectTimeout = 30000
-                    connection.readTimeout = 30000
-                    
-                    val responseCode = connection.responseCode
-                    Log.d("ArticleDetail", "Réponse HTTP pour URL statique: $responseCode")
-                    
-                    if (responseCode == 200) {
-                        pdfBytes = connection.inputStream.readBytes()
-                        Log.d("ArticleDetail", "PDF téléchargé depuis URL statique, taille: ${pdfBytes.size} bytes")
-                    } else {
-                        val errorBody = connection.errorStream?.readBytes()?.toString(Charsets.UTF_8) ?: "N/A"
-                        Log.e("ArticleDetail", "Erreur HTTP $responseCode pour URL statique: $errorBody")
-                    }
-                } catch (e: Exception) {
-                    Log.e("ArticleDetail", "Erreur lors du téléchargement depuis URL statique", e)
-                }
-            } else {
-                Log.d("ArticleDetail", "pdfPath est null, on va essayer l'endpoint API")
-            }
-            
-            // Si l'URL statique n'a pas fonctionné, essayer l'endpoint API
-            if (pdfBytes == null && apiKey != null) {
+            // Utiliser uniquement l'endpoint API (pas d'URL statique)
+            if (apiKey != null) {
                 Log.d("ArticleDetail", "Tentative téléchargement PDF via endpoint API")
                 try {
                     val repository = ReadScraperRepository()
@@ -315,7 +241,7 @@ private fun downloadPdf(
                 } catch (e: Exception) {
                     Log.e("ArticleDetail", "Exception lors du téléchargement via API", e)
                 }
-            } else if (apiKey == null) {
+            } else {
                 Log.e("ArticleDetail", "Impossible de télécharger via API: apiKey est null")
             }
             
@@ -373,9 +299,11 @@ private fun downloadPdf(
                         fileUri
                     }
                     
+                    // Créer un intent plus générique pour ouvrir le PDF
                     val intent = Intent(Intent.ACTION_VIEW).apply {
                         setDataAndType(uri, "application/pdf")
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         }
@@ -383,16 +311,35 @@ private fun downloadPdf(
                     
                     Log.d("ArticleDetail", "Intent créé: action=${intent.action}, data=${intent.data}, type=${intent.type}")
                     
-                    if (intent.resolveActivity(context.packageManager) != null) {
-                        Log.d("ArticleDetail", "Application PDF trouvée, ouverture...")
-                        context.startActivity(intent)
-                        Toast.makeText(
-                            context,
-                            "PDF téléchargé et ouvert",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                    // Essayer d'abord avec le type spécifique
+                    var resolved = intent.resolveActivity(context.packageManager)
+                    
+                    // Si pas trouvé, essayer avec un type plus générique
+                    if (resolved == null) {
+                        Log.d("ArticleDetail", "Aucune app pour application/pdf, essai avec type générique")
+                        intent.type = "*/*"
+                        resolved = intent.resolveActivity(context.packageManager)
+                    }
+                    
+                    if (resolved != null) {
+                        Log.d("ArticleDetail", "Application trouvée: ${resolved.activityInfo.packageName}/${resolved.activityInfo.name}")
+                        try {
+                            context.startActivity(intent)
+                            Toast.makeText(
+                                context,
+                                "PDF téléchargé et ouvert",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        } catch (e: Exception) {
+                            Log.e("ArticleDetail", "Erreur lors du démarrage de l'activité", e)
+                            Toast.makeText(
+                                context,
+                                "PDF téléchargé dans: $fileName\nErreur lors de l'ouverture: ${e.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
                     } else {
-                        Log.w("ArticleDetail", "Aucune application PDF trouvée")
+                        Log.w("ArticleDetail", "Aucune application trouvée pour ouvrir le PDF")
                         Toast.makeText(
                             context,
                             "PDF téléchargé dans: $fileName\nAucune application de lecture PDF trouvée",
