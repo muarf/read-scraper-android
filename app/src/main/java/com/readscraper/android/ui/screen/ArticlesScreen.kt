@@ -36,20 +36,34 @@ fun ArticlesScreen(
             ) {
                 CircularProgressIndicator()
             }
-        } else if (uiState.errorMessage != null) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                )
-            ) {
-                Text(
-                    text = uiState.errorMessage,
-                    modifier = Modifier.padding(16.dp)
-                )
+        } else {
+            val errorMessage = uiState.errorMessage
+            if (errorMessage != null) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.errorContainer
+                    )
+                ) {
+                    Text(
+                        text = errorMessage,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(uiState.articles) { article ->
+                        ArticleItem(article = article)
+                    }
+                }
             }
+        }
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),

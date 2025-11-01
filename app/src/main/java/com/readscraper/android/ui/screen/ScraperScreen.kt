@@ -118,6 +118,7 @@ fun ScraperScreen(
         
         // Statut du job
         if (uiState.jobStatus != null || uiState.isPolling) {
+            val jobStatus = uiState.jobStatus
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -129,13 +130,14 @@ fun ScraperScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Étape actuelle: ${uiState.jobStatus?.current_step ?: "Initialisation"}",
+                        text = "Étape actuelle: ${jobStatus?.current_step ?: "Initialisation"}",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    if (uiState.jobStatus?.step_description != null) {
+                    val stepDescription = jobStatus?.step_description
+                    if (stepDescription != null) {
                         Text(
-                            text = uiState.jobStatus.step_description,
+                            text = stepDescription,
                             style = MaterialTheme.typography.bodyMedium
                         )
                     } else {
@@ -145,18 +147,22 @@ fun ScraperScreen(
                         )
                     }
                     
-                    if (uiState.jobStatus?.status == "searching" && uiState.jobStatus.search_results_count != null) {
-                        Text(
-                            text = "Résultats trouvés: ${uiState.jobStatus.search_results_count}",
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                    if (jobStatus?.status == "searching") {
+                        val searchResultsCount = jobStatus.search_results_count
+                        if (searchResultsCount != null) {
+                            Text(
+                                text = "Résultats trouvés: $searchResultsCount",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
                     }
                 }
             }
         }
         
         // Article téléchargé
-        if (uiState.article != null) {
+        val article = uiState.article
+        if (article != null) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
@@ -168,14 +174,14 @@ fun ScraperScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = uiState.article.title,
+                        text = article.title,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     
-                    if (uiState.article.site_source != null) {
+                    if (article.site_source != null) {
                         Text(
-                            text = "Source: ${uiState.article.site_source}",
+                            text = "Source: ${article.site_source}",
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
