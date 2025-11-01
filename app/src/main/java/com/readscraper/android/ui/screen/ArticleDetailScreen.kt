@@ -24,6 +24,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.navigation.NavController
+import android.util.Log
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import com.readscraper.android.data.model.Article
@@ -72,11 +73,15 @@ fun ArticleDetailScreen(
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
+                .padding(paddingValues),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             Text(
                 text = article.title,
                 style = MaterialTheme.typography.headlineMedium,
@@ -148,15 +153,31 @@ fun ArticleDetailScreen(
                     fontWeight = FontWeight.Bold
                 )
                 
+                Log.d("ArticleDetail", "Chargement HTML pour article ${article.id}, longueur: ${article.html_content.length}")
+                
                 AndroidView(
                     factory = { ctx ->
                         WebView(ctx).apply {
-                            webViewClient = WebViewClient()
+                            Log.d("ArticleDetail", "Création WebView")
+                            webViewClient = object : WebViewClient() {
+                                override fun onPageFinished(view: WebView?, url: String?) {
+                                    super.onPageFinished(view, url)
+                                    Log.d("ArticleDetail", "Page WebView chargée: $url")
+                                }
+                                
+                                override fun onReceivedError(view: WebView?, errorCode: Int, description: String?, failingUrl: String?) {
+                                    super.onReceivedError(view, errorCode, description, failingUrl)
+                                    Log.e("ArticleDetail", "Erreur WebView: $errorCode - $description - $failingUrl")
+                                }
+                            }
+                            
                             settings.javaScriptEnabled = true
                             settings.domStorageEnabled = true
                             settings.loadWithOverviewMode = true
                             settings.useWideViewPort = true
                             settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                            settings.builtInZoomControls = true
+                            settings.displayZoomControls = false
                             
                             // Charger le contenu HTML avec un style de base
                             val htmlContent = """
@@ -173,6 +194,7 @@ fun ArticleDetailScreen(
                                             max-width: 100%;
                                             word-wrap: break-word;
                                             background-color: #ffffff;
+                                            margin: 0;
                                         }
                                         img {
                                             max-width: 100%;
@@ -199,12 +221,14 @@ fun ArticleDetailScreen(
                                 </html>
                             """.trimIndent()
                             
+                            Log.d("ArticleDetail", "Chargement HTML dans WebView, baseURL: http://104.244.74.191:5000/")
                             loadDataWithBaseURL("http://104.244.74.191:5000/", htmlContent, "text/html", "UTF-8", null)
                         }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(500.dp)
+                        .fillMaxHeight()
+                        .weight(1f)
                 )
             } else {
                 // Si pas de contenu HTML, proposer d'ouvrir dans le navigateur
@@ -219,6 +243,7 @@ fun ArticleDetailScreen(
                     Text("Ouvrir l'article dans le navigateur")
                 }
             }
+            }
         }
     }
 }
@@ -231,9 +256,13 @@ private fun downloadPdf(
     scope: kotlinx.coroutines.CoroutineScope,
     onComplete: () -> Unit = {}
 ) {
+    Log.d("ArticleDetail", "downloadPdf appelé - articleId: $articleId, pdfPath: $pdfPath, apiKey présent: ${apiKey != null}")
+    
     scope.launch {
         try {
-            val pdfBytes: ByteArray? = if (pdfPath != null) {
+            var pdfBytes: ByteArray? = null
+            
+            if (pdfPath != null) {
                 // Essayer d'abord avec l'URL statique
                 try {
                     val staticUrl = if (pdfPath.startsWith("http")) {
@@ -243,36 +272,55 @@ private fun downloadPdf(
                         "http://104.244.74.191:5000${if (pdfPath.startsWith("/")) pdfPath else "/$pdfPath"}"
                     }
                     
+                    Log.d("ArticleDetail", "Tentative téléchargement PDF depuis URL statique: $staticUrl")
+                    
                     val url = java.net.URL(staticUrl)
                     val connection = url.openConnection() as java.net.HttpURLConnection
                     connection.requestMethod = "GET"
                     connection.connectTimeout = 30000
                     connection.readTimeout = 30000
                     
-                    if (connection.responseCode == 200) {
-                        connection.inputStream.readBytes()
+                    val responseCode = connection.responseCode
+                    Log.d("ArticleDetail", "Réponse HTTP pour URL statique: $responseCode")
+                    
+                    if (responseCode == 200) {
+                        pdfBytes = connection.inputStream.readBytes()
+                        Log.d("ArticleDetail", "PDF téléchargé depuis URL statique, taille: ${pdfBytes.size} bytes")
                     } else {
-                        null
+                        val errorBody = connection.errorStream?.readBytes()?.toString(Charsets.UTF_8) ?: "N/A"
+                        Log.e("ArticleDetail", "Erreur HTTP $responseCode pour URL statique: $errorBody")
                     }
                 } catch (e: Exception) {
-                    null
+                    Log.e("ArticleDetail", "Erreur lors du téléchargement depuis URL statique", e)
                 }
             } else {
-                null
+                Log.d("ArticleDetail", "pdfPath est null, on va essayer l'endpoint API")
             }
             
             // Si l'URL statique n'a pas fonctionné, essayer l'endpoint API
-            val finalPdfBytes = pdfBytes ?: if (apiKey != null) {
-                val repository = ReadScraperRepository()
-                repository.downloadPdf(apiKey, articleId).fold(
-                    onSuccess = { it },
-                    onFailure = { null }
-                )
-            } else {
-                null
+            if (pdfBytes == null && apiKey != null) {
+                Log.d("ArticleDetail", "Tentative téléchargement PDF via endpoint API")
+                try {
+                    val repository = ReadScraperRepository()
+                    val result = repository.downloadPdf(apiKey, articleId)
+                    result.fold(
+                        onSuccess = { bytes ->
+                            pdfBytes = bytes
+                            Log.d("ArticleDetail", "PDF téléchargé via API, taille: ${bytes.size} bytes")
+                        },
+                        onFailure = { error ->
+                            Log.e("ArticleDetail", "Erreur lors du téléchargement via API", error)
+                        }
+                    )
+                } catch (e: Exception) {
+                    Log.e("ArticleDetail", "Exception lors du téléchargement via API", e)
+                }
+            } else if (apiKey == null) {
+                Log.e("ArticleDetail", "Impossible de télécharger via API: apiKey est null")
             }
             
-            if (finalPdfBytes == null || finalPdfBytes.isEmpty()) {
+            if (pdfBytes == null || pdfBytes.isEmpty()) {
+                Log.e("ArticleDetail", "PDF non disponible ou vide")
                 android.os.Handler(android.os.Looper.getMainLooper()).post {
                     Toast.makeText(
                         context,
@@ -288,19 +336,40 @@ private fun downloadPdf(
             val fileName = "article_${articleId}.pdf"
             val file = java.io.File(downloadsDir, fileName)
             
-            java.io.FileOutputStream(file).use { it.write(finalPdfBytes) }
+            Log.d("ArticleDetail", "Écriture du PDF dans: ${file.absolutePath}")
+            
+            try {
+                java.io.FileOutputStream(file).use { it.write(pdfBytes) }
+                Log.d("ArticleDetail", "PDF écrit avec succès, taille fichier: ${file.length()} bytes")
+            } catch (e: Exception) {
+                Log.e("ArticleDetail", "Erreur lors de l'écriture du PDF", e)
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    Toast.makeText(
+                        context,
+                        "Erreur lors de l'écriture du fichier: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    onComplete()
+                }
+                return@launch
+            }
             
             android.os.Handler(android.os.Looper.getMainLooper()).post {
                 // Ouvrir automatiquement le PDF après téléchargement
                 try {
+                    Log.d("ArticleDetail", "Tentative d'ouverture du PDF")
                     val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        FileProvider.getUriForFile(
+                        val providerUri = FileProvider.getUriForFile(
                             context,
                             "${context.packageName}.fileprovider",
                             file
                         )
+                        Log.d("ArticleDetail", "URI FileProvider: $providerUri")
+                        providerUri
                     } else {
-                        Uri.fromFile(file)
+                        val fileUri = Uri.fromFile(file)
+                        Log.d("ArticleDetail", "URI File: $fileUri")
+                        fileUri
                     }
                     
                     val intent = Intent(Intent.ACTION_VIEW).apply {
@@ -311,7 +380,10 @@ private fun downloadPdf(
                         }
                     }
                     
+                    Log.d("ArticleDetail", "Intent créé: action=${intent.action}, data=${intent.data}, type=${intent.type}")
+                    
                     if (intent.resolveActivity(context.packageManager) != null) {
+                        Log.d("ArticleDetail", "Application PDF trouvée, ouverture...")
                         context.startActivity(intent)
                         Toast.makeText(
                             context,
@@ -319,6 +391,7 @@ private fun downloadPdf(
                             Toast.LENGTH_SHORT
                         ).show()
                     } else {
+                        Log.w("ArticleDetail", "Aucune application PDF trouvée")
                         Toast.makeText(
                             context,
                             "PDF téléchargé dans: $fileName\nAucune application de lecture PDF trouvée",
@@ -326,6 +399,7 @@ private fun downloadPdf(
                         ).show()
                     }
                 } catch (e: Exception) {
+                    Log.e("ArticleDetail", "Erreur lors de l'ouverture du PDF", e)
                     Toast.makeText(
                         context,
                         "PDF téléchargé: $fileName\nErreur lors de l'ouverture: ${e.message}",
@@ -335,6 +409,7 @@ private fun downloadPdf(
                 onComplete()
             }
         } catch (e: Exception) {
+            Log.e("ArticleDetail", "Exception générale lors du téléchargement PDF", e)
             android.os.Handler(android.os.Looper.getMainLooper()).post {
                 Toast.makeText(
                     context,
