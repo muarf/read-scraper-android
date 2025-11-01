@@ -254,9 +254,11 @@ fun ArticleDetailScreen(
                                     android.webkit.ConsoleMessage.MessageLevel.WARNING -> {
                                         Log.w("ArticleDetail", "JS Console WARNING: $message (at $sourceId:$lineNumber)")
                                     }
-                                    android.webkit.ConsoleMessage.MessageLevel.LOG,
-                                    android.webkit.ConsoleMessage.MessageLevel.INFO -> {
+                                    android.webkit.ConsoleMessage.MessageLevel.LOG -> {
                                         Log.d("ArticleDetail", "JS Console: $message")
+                                    }
+                                    android.webkit.ConsoleMessage.MessageLevel.DEBUG -> {
+                                        Log.d("ArticleDetail", "JS Console DEBUG: $message")
                                     }
                                     else -> {
                                         Log.d("ArticleDetail", "JS Console ($level): $message")
