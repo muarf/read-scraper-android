@@ -1,7 +1,9 @@
 package com.readscraper.android.ui.screen
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.widget.Toast
@@ -90,31 +92,53 @@ fun ArticleDetailScreen(
             
             Divider()
             
+            var isDownloading by remember { mutableStateOf(false) }
+            
             Button(
                 onClick = {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        downloadPdf(article.id, apiKey, context, scope)
+                        isDownloading = true
+                        downloadPdf(article.id, apiKey, context, scope) { isDownloading = false }
                     } else {
                         if (ContextCompat.checkSelfPermission(
                                 context,
                                 Manifest.permission.WRITE_EXTERNAL_STORAGE
                             ) == PackageManager.PERMISSION_GRANTED
                         ) {
-                            downloadPdf(article.id, apiKey, context, scope)
+                            isDownloading = true
+                            downloadPdf(article.id, apiKey, context, scope) { isDownloading = false }
                         } else {
                             permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
                         }
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = apiKey != null
+                enabled = apiKey != null && !isDownloading && article.pdf_path != null
             ) {
-                Text("Télécharger le PDF")
+                if (isDownloading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(if (article.pdf_path == null) "PDF non disponible" else "Télécharger le PDF")
+            }
+            
+            if (article.pdf_path == null) {
+                Text(
+                    text = "Aucun PDF disponible pour cet article",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             
             if (article.url.isNotBlank()) {
                 OutlinedButton(
-                    onClick = { /* TODO: Ouvrir dans un navigateur */ },
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(article.url))
+                        context.startActivity(intent)
+                    },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Ouvrir l'article original")
@@ -128,38 +152,72 @@ private fun downloadPdf(
     articleId: String,
     apiKey: String?,
     context: android.content.Context,
-    scope: kotlinx.coroutines.CoroutineScope
+    scope: kotlinx.coroutines.CoroutineScope,
+    onComplete: () -> Unit = {}
 ) {
-    if (apiKey == null) return
+    if (apiKey == null) {
+        onComplete()
+        return
+    }
     
     scope.launch {
-        val repository = ReadScraperRepository()
-        repository.downloadPdf(apiKey, articleId).fold(
-            onSuccess = { pdfBytes ->
-                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                val fileName = "article_${articleId}.pdf"
-                val file = java.io.File(downloadsDir, fileName)
-                
-                java.io.FileOutputStream(file).use { it.write(pdfBytes) }
-                
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    Toast.makeText(
-                        context,
-                        "PDF téléchargé: $fileName",
-                        Toast.LENGTH_LONG
-                    ).show()
+        try {
+            val repository = ReadScraperRepository()
+            repository.downloadPdf(apiKey, articleId).fold(
+                onSuccess = { pdfBytes ->
+                    if (pdfBytes.isEmpty()) {
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            Toast.makeText(
+                                context,
+                                "Le PDF est vide ou n'existe pas",
+                                Toast.LENGTH_LONG
+                            ).show()
+                            onComplete()
+                        }
+                        return@fold
+                    }
+                    
+                    val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                    val fileName = "article_${articleId}.pdf"
+                    val file = java.io.File(downloadsDir, fileName)
+                    
+                    java.io.FileOutputStream(file).use { it.write(pdfBytes) }
+                    
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        Toast.makeText(
+                            context,
+                            "PDF téléchargé: $fileName",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        onComplete()
+                    }
+                },
+                onFailure = { error ->
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        val errorMessage = when {
+                            error.message?.contains("404") == true -> "PDF non trouvé (404). L'article n'a peut-être pas encore de PDF généré."
+                            error.message?.contains("Erreur: 404") == true -> "PDF non trouvé. L'article n'a peut-être pas encore de PDF généré."
+                            else -> "Erreur: ${error.message ?: "Erreur inconnue"}"
+                        }
+                        Toast.makeText(
+                            context,
+                            errorMessage,
+                            Toast.LENGTH_LONG
+                        ).show()
+                        onComplete()
+                    }
                 }
-            },
-            onFailure = { error ->
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    Toast.makeText(
-                        context,
-                        "Erreur: ${error.message}",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+            )
+        } catch (e: Exception) {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                Toast.makeText(
+                    context,
+                    "Erreur: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
+                onComplete()
             }
-        )
+        }
     }
 }
 

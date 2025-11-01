@@ -228,35 +228,62 @@ private fun downloadPdf(
 ) {
     val articleId = viewModel.uiState.value.article?.id ?: return
     val apiKey = viewModel.uiState.value.apiKey ?: return
+    val article = viewModel.uiState.value.article
     
     scope.launch {
-        val repository = ReadScraperRepository()
-        repository.downloadPdf(apiKey, articleId).fold(
-            onSuccess = { pdfBytes ->
-                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                val fileName = "article_${articleId}.pdf"
-                val file = File(downloadsDir, fileName)
-                
-                FileOutputStream(file).use { it.write(pdfBytes) }
-                
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    Toast.makeText(
-                        context,
-                        "PDF téléchargé: $fileName",
-                        Toast.LENGTH_LONG
-                    ).show()
+        try {
+            val repository = ReadScraperRepository()
+            repository.downloadPdf(apiKey, articleId).fold(
+                onSuccess = { pdfBytes ->
+                    if (pdfBytes.isEmpty()) {
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            Toast.makeText(
+                                context,
+                                "Le PDF est vide ou n'existe pas",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                        return@fold
+                    }
+                    
+                    val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                    val fileName = "article_${articleId}.pdf"
+                    val file = File(downloadsDir, fileName)
+                    
+                    FileOutputStream(file).use { it.write(pdfBytes) }
+                    
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        Toast.makeText(
+                            context,
+                            "PDF téléchargé: $fileName",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                },
+                onFailure = { error ->
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        val errorMessage = when {
+                            error.message?.contains("404") == true -> "PDF non trouvé (404). L'article n'a peut-être pas encore de PDF généré."
+                            error.message?.contains("Erreur: 404") == true -> "PDF non trouvé. L'article n'a peut-être pas encore de PDF généré."
+                            else -> "Erreur: ${error.message ?: "Erreur inconnue"}"
+                        }
+                        Toast.makeText(
+                            context,
+                            errorMessage,
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
-            },
-            onFailure = { error ->
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    Toast.makeText(
-                        context,
-                        "Erreur: ${error.message}",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+            )
+        } catch (e: Exception) {
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                Toast.makeText(
+                    context,
+                    "Erreur: ${e.message}",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
-        )
+        }
     }
 }
 
