@@ -44,11 +44,18 @@ jobs:
       - name: Assemble Release APK
         run: ./gradlew assembleRelease --no-daemon
       
+      - name: Find APK
+        run: |
+          find app/build/outputs -name "*.apk" -type f
+          ls -la app/build/outputs/apk/release/ || echo "Directory not found"
+          ls -la app/build/outputs/ || echo "Outputs directory not found"
+      
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: app-release.apk
-          path: app/build/outputs/apk/release/app-release.apk
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
           retention-days: 7
       
       - name: Upload build artifacts

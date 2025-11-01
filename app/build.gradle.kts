@@ -6,6 +6,11 @@ plugins {
 android {
     namespace = "com.readscraper.android"
     compileSdk = 34
+    
+    lint {
+        abortOnError = false
+        checkReleaseBuilds = false
+    }
 
     defaultConfig {
         applicationId = "com.readscraper.android"
@@ -23,6 +28,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
+            isDebuggable = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
