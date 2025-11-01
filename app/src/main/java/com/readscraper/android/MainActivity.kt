@@ -88,23 +88,11 @@ class MainActivity : ComponentActivity() {
                                     }
                                 )
                                 
-                                // Récupérer l'article
                                 val uiState by mainViewModel.uiState.collectAsState()
-                                LaunchedEffect(articleId) {
-                                    if (uiState.article?.id != articleId) {
-                                        val apiKey = uiState.apiKey
-                                        if (apiKey != null && articleId.isNotBlank()) {
-                                            repository.getArticle(apiKey, articleId).fold(
-                                                onSuccess = { article ->
-                                                    // L'article sera géré par le ViewModel
-                                                },
-                                                onFailure = { }
-                                            )
-                                        }
-                                    }
-                                }
+                                var article by remember { mutableStateOf<com.readscraper.android.data.model.Article?>(null) }
+                                var isLoadingArticle by remember { mutableStateOf(true) }
                                 
-                                // Trouver l'article dans la liste ou le charger
+                                // Trouver l'article dans la liste des articles
                                 val articlesViewModel: ArticlesViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
                                     factory = object : androidx.lifecycle.ViewModelProvider.Factory {
                                         override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
@@ -115,20 +103,50 @@ class MainActivity : ComponentActivity() {
                                 )
                                 
                                 val articlesState by articlesViewModel.uiState.collectAsState()
-                                val article = articlesState.articles.find { it.id == articleId }
+                                val foundArticle = articlesState.articles.find { it.id == articleId }
                                 
-                                if (article != null) {
+                                LaunchedEffect(articleId, foundArticle) {
+                                    if (foundArticle != null) {
+                                        article = foundArticle
+                                        isLoadingArticle = false
+                                    } else {
+                                        // Charger depuis l'API
+                                        val apiKey = uiState.apiKey
+                                        if (apiKey != null && articleId.isNotBlank()) {
+                                            repository.getArticle(apiKey, articleId).fold(
+                                                onSuccess = { loadedArticle ->
+                                                    article = loadedArticle
+                                                    isLoadingArticle = false
+                                                },
+                                                onFailure = {
+                                                    isLoadingArticle = false
+                                                }
+                                            )
+                                        } else {
+                                            isLoadingArticle = false
+                                        }
+                                    }
+                                }
+                                
+                                if (isLoadingArticle) {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator()
+                                    }
+                                } else if (article != null) {
                                     ArticleDetailScreen(
-                                        article = article,
+                                        article = article!!,
                                         apiKey = uiState.apiKey,
                                         navController = navController
                                     )
                                 } else {
                                     Box(
                                         modifier = Modifier.fillMaxSize(),
-                                        contentAlignment = androidx.compose.ui.Alignment.Center
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        CircularProgressIndicator()
+                                        Text("Article non trouvé")
                                     }
                                 }
                             }
