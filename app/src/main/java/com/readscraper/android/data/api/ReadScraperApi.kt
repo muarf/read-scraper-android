@@ -53,5 +53,11 @@ interface ReadScraperApi {
         @Header("X-API-Key") apiKey: String,
         @Path("job_id") jobId: String
     ): Response<RejectResponse>
+    
+    @POST("/api/v1/job/{job_id}/cancel")
+    suspend fun cancelJob(
+        @Header("X-API-Key") apiKey: String,
+        @Path("job_id") jobId: String
+    ): Response<CancelResponse>
 }
 

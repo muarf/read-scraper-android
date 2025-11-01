@@ -78,11 +78,17 @@ fun ScraperScreen(
             enabled = !uiState.isLoading && !uiState.isPolling
         )
         
-        // Bouton Scraper
+        // Bouton Scraper / Annuler
         Button(
-            onClick = { viewModel.scrape() },
+            onClick = { 
+                if (uiState.isPolling) {
+                    viewModel.cancelScraping()
+                } else {
+                    viewModel.scrape()
+                }
+            },
             modifier = Modifier.fillMaxWidth(),
-            enabled = !uiState.isLoading && !uiState.isPolling && uiState.searchInput.isNotBlank()
+            enabled = if (uiState.isPolling) true else (!uiState.isLoading && uiState.searchInput.isNotBlank())
         ) {
             if (uiState.isLoading || uiState.isPolling) {
                 CircularProgressIndicator(
@@ -91,7 +97,7 @@ fun ScraperScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
             }
-            Text("Scraper")
+            Text(if (uiState.isPolling) "Annuler" else "Scraper")
         }
         
         // Message d'erreur

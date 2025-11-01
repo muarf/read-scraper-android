@@ -77,6 +77,12 @@ class MainViewModel(
     }
     
     fun scrape() {
+        // Si un scraping est en cours, annuler plutôt que de relancer
+        if (_uiState.value.isPolling && _uiState.value.currentJobId != null) {
+            cancelScraping()
+            return
+        }
+        
         val input = _uiState.value.searchInput.trim()
         if (input.isEmpty()) {
             _uiState.value = _uiState.value.copy(errorMessage = "Veuillez entrer une URL ou des termes de recherche")
@@ -89,12 +95,19 @@ class MainViewModel(
             getTempApiKey()
             viewModelScope.launch {
                 delay(1000) // Attendre que la clé soit obtenue
-                scrape() // Relancer
+                scrape() // Relancer une seule fois
             }
             return
         }
         
+        // Éviter le double lancement
+        if (_uiState.value.isLoading || _uiState.value.isPolling) {
+            android.util.Log.d("MainViewModel", "Scraping déjà en cours, ignoré")
+            return
+        }
+        
         viewModelScope.launch {
+            android.util.Log.d("MainViewModel", "Démarrage du scraping: $input")
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             
             val request = if (input.startsWith("http://") || input.startsWith("https://")) {
@@ -105,6 +118,7 @@ class MainViewModel(
             
             repository.scrape(apiKey, request).fold(
                 onSuccess = { response ->
+                    android.util.Log.d("MainViewModel", "Réponse scraping: cached=${response.cached}, article_id=${response.article_id}, job_id=${response.job_id}")
                     if (response.cached && response.article_id != null) {
                         // Article en cache, récupérer directement
                         // Conserver le job_id si présent pour permettre le rejet
@@ -129,6 +143,7 @@ class MainViewModel(
                     }
                 },
                 onFailure = { error ->
+                    android.util.Log.e("MainViewModel", "Erreur scraping", error)
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = error.message ?: "Erreur lors du scraping"
@@ -138,24 +153,64 @@ class MainViewModel(
         }
     }
     
+    fun cancelScraping() {
+        val jobId = _uiState.value.currentJobId
+        val apiKey = _uiState.value.apiKey
+        if (jobId == null || apiKey == null) {
+            android.util.Log.w("MainViewModel", "Impossible d'annuler: jobId ou apiKey null")
+            stopPolling()
+            return
+        }
+        
+        viewModelScope.launch {
+            android.util.Log.d("MainViewModel", "Annulation du scraping pour job: $jobId")
+            stopPolling()
+            repository.cancelJob(apiKey, jobId).fold(
+                onSuccess = { response ->
+                    android.util.Log.d("MainViewModel", "Job annulé: ${response.message}")
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        isPolling = false,
+                        currentJobId = null,
+                        jobStatus = null
+                    )
+                },
+                onFailure = { error ->
+                    android.util.Log.e("MainViewModel", "Erreur lors de l'annulation", error)
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        isPolling = false,
+                        errorMessage = error.message ?: "Erreur lors de l'annulation"
+                    )
+                }
+            )
+        }
+    }
+    
     private fun startPolling(jobId: String) {
         pollingJob?.cancel()
         pollingJob = viewModelScope.launch {
+            android.util.Log.d("MainViewModel", "Démarrage du polling pour job: $jobId")
             while (true) {
                 delay(2000) // Poll toutes les 2 secondes
                 
                 val apiKey = _uiState.value.apiKey ?: break
+                android.util.Log.d("MainViewModel", "Polling - récupération du statut pour job: $jobId")
                 repository.getJobStatus(apiKey, jobId).fold(
                     onSuccess = { status ->
+                        android.util.Log.d("MainViewModel", "Statut reçu: status=${status.status}, article_id=${status.article_id}, current_step=${status.current_step}")
                         _uiState.value = _uiState.value.copy(jobStatus = status)
                         
                         when (status.status) {
                             "completed" -> {
+                                android.util.Log.d("MainViewModel", "Job completed: article_id=${status.article_id}")
                                 // Arrêter le polling même si article_id est null (PDF peut être généré sans article_id dans certains cas)
                                 stopPolling()
                                 if (status.article_id != null) {
+                                    android.util.Log.d("MainViewModel", "Récupération de l'article avec id: ${status.article_id}")
                                     getArticle(status.article_id)
                                 } else {
+                                    android.util.Log.w("MainViewModel", "Job completed mais article_id est null")
                                     // Job terminé mais pas d'article_id - peut-être que le PDF est disponible directement
                                     _uiState.value = _uiState.value.copy(
                                         isLoading = false,
@@ -165,6 +220,7 @@ class MainViewModel(
                                 }
                             }
                             "failed" -> {
+                                android.util.Log.e("MainViewModel", "Job failed: ${status.error_message}")
                                 _uiState.value = _uiState.value.copy(
                                     isLoading = false,
                                     isPolling = false,
@@ -172,9 +228,19 @@ class MainViewModel(
                                 )
                                 stopPolling()
                             }
+                            "cancelled" -> {
+                                android.util.Log.d("MainViewModel", "Job cancelled")
+                                _uiState.value = _uiState.value.copy(
+                                    isLoading = false,
+                                    isPolling = false,
+                                    errorMessage = "Job annulé"
+                                )
+                                stopPolling()
+                            }
                         }
                     },
                     onFailure = { error ->
+                        android.util.Log.e("MainViewModel", "Erreur lors de la récupération du statut", error)
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
                             isPolling = false,
@@ -197,8 +263,10 @@ class MainViewModel(
         viewModelScope.launch {
             val apiKey = _uiState.value.apiKey ?: return@launch
             val currentJobId = _uiState.value.currentJobId // Conserver le job_id
+            android.util.Log.d("MainViewModel", "Récupération de l'article: $articleId")
             repository.getArticle(apiKey, articleId).fold(
                 onSuccess = { article ->
+                    android.util.Log.d("MainViewModel", "Article récupéré avec succès: id=${article.id}, title=${article.title}")
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         article = article,
@@ -207,6 +275,7 @@ class MainViewModel(
                     )
                 },
                 onFailure = { error ->
+                    android.util.Log.e("MainViewModel", "Erreur lors de la récupération de l'article: $articleId", error)
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = error.message ?: "Erreur lors de la récupération de l'article"

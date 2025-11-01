@@ -39,24 +39,36 @@ class ReadScraperRepository {
         try {
             val response = api.getJobStatus(apiKey, jobId)
             if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
+                val status = response.body()!!
+                android.util.Log.d("ReadScraperRepository", "JobStatus reçu: id=${status.id}, status=${status.status}, article_id=${status.article_id}")
+                Result.success(status)
             } else {
-                Result.failure(Exception("Erreur: ${response.code()} ${response.message()}"))
+                val errorBody = response.errorBody()?.string()
+                android.util.Log.e("ReadScraperRepository", "Erreur getJobStatus: code=${response.code()}, message=${response.message()}, errorBody=$errorBody")
+                Result.failure(Exception("Erreur: ${response.code()} ${response.message() ?: errorBody ?: "Erreur inconnue"}"))
             }
         } catch (e: Exception) {
+            android.util.Log.e("ReadScraperRepository", "Exception lors de la récupération du statut", e)
             Result.failure(e)
         }
     }
     
     suspend fun getArticle(apiKey: String, articleId: String): Result<Article> = withContext(Dispatchers.IO) {
         try {
+            android.util.Log.d("ReadScraperRepository", "Récupération de l'article: articleId=$articleId, apiKey présent=${apiKey.isNotBlank()}")
             val response = api.getArticle(apiKey, articleId)
+            android.util.Log.d("ReadScraperRepository", "Réponse getArticle: code=${response.code()}, isSuccessful=${response.isSuccessful}, body null=${response.body() == null}")
             if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!)
+                val article = response.body()!!
+                android.util.Log.d("ReadScraperRepository", "Article récupéré: id=${article.id}, title=${article.title}, html_content length=${article.html_content?.length ?: 0}")
+                Result.success(article)
             } else {
-                Result.failure(Exception("Erreur: ${response.code()} ${response.message()}"))
+                val errorBody = response.errorBody()?.string()
+                android.util.Log.e("ReadScraperRepository", "Erreur getArticle: code=${response.code()}, message=${response.message()}, errorBody=$errorBody")
+                Result.failure(Exception("Erreur: ${response.code()} ${response.message() ?: errorBody ?: "Erreur inconnue"}"))
             }
         } catch (e: Exception) {
+            android.util.Log.e("ReadScraperRepository", "Exception lors de la récupération de l'article", e)
             Result.failure(e)
         }
     }
@@ -128,6 +140,24 @@ class ReadScraperRepository {
                 Result.failure(Exception("Erreur: ${response.code()} - $errorBody"))
             }
         } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun cancelJob(apiKey: String, jobId: String): Result<CancelResponse> = withContext(Dispatchers.IO) {
+        try {
+            android.util.Log.d("ReadScraperRepository", "Annulation du job: $jobId")
+            val response = api.cancelJob(apiKey, jobId)
+            if (response.isSuccessful && response.body() != null) {
+                android.util.Log.d("ReadScraperRepository", "Job annulé avec succès: ${response.body()}")
+                Result.success(response.body()!!)
+            } else {
+                val errorBody = response.errorBody()?.string() ?: response.message()
+                android.util.Log.e("ReadScraperRepository", "Erreur lors de l'annulation: ${response.code()} - $errorBody")
+                Result.failure(Exception("Erreur: ${response.code()} - $errorBody"))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("ReadScraperRepository", "Exception lors de l'annulation", e)
             Result.failure(e)
         }
     }
