@@ -85,7 +85,8 @@ class ShareActivity : ComponentActivity() {
                                                 return ArticlesViewModel(repository, preferencesManager) as T
                                             }
                                         }
-                                    )
+                                    ),
+                                    navController = navController
                                 )
                             }
                             

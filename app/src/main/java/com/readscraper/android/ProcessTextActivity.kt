@@ -80,7 +80,8 @@ class ProcessTextActivity : ComponentActivity() {
                                                 return ArticlesViewModel(repository, preferencesManager) as T
                                             }
                                         }
-                                    )
+                                    ),
+                                    navController = navController
                                 )
                             }
                             
