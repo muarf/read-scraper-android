@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -155,14 +156,15 @@ class MainActivity : ComponentActivity() {
                                         }
                                     }
                                 } else if (article != null) {
+                                    val currentJobId = uiState.currentJobId
                                     ArticleDetailScreen(
                                         article = article!!,
                                         apiKey = uiState.apiKey,
                                         navController = navController,
-                                        jobId = uiState.currentJobId,
+                                        jobId = currentJobId,
                                         onReject = {
-                                            if (uiState.currentJobId != null) {
-                                                mainViewModel.rejectArticle(uiState.currentJobId)
+                                            if (currentJobId != null) {
+                                                mainViewModel.rejectArticle(currentJobId)
                                                 navController.popBackStack()
                                             }
                                         }
