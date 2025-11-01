@@ -11,6 +11,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -199,6 +203,16 @@ fun ScraperScreen(
                             fontWeight = FontWeight.Bold
                         )
                         
+                        // Connection pour permettre le scroll dans la WebView
+                        val webViewScrollConnection = remember {
+                            object : NestedScrollConnection {
+                                override fun onPreScroll(available: androidx.compose.ui.geometry.Offset, source: NestedScrollSource): androidx.compose.ui.geometry.Offset {
+                                    // Consommer le scroll vertical pour permettre à la WebView de gérer
+                                    return androidx.compose.ui.geometry.Offset.Zero
+                                }
+                            }
+                        }
+                        
                         AndroidView(
                             factory = { ctx ->
                                 android.webkit.WebView(ctx).apply {
@@ -207,6 +221,15 @@ fun ScraperScreen(
                                     settings.javaScriptEnabled = true
                                     settings.loadWithOverviewMode = true
                                     settings.useWideViewPort = true
+                                    settings.setSupportZoom(true)
+                                    settings.builtInZoomControls = false
+                                    settings.displayZoomControls = false
+                                    // Activer le scrolling vertical dans la WebView
+                                    isVerticalScrollBarEnabled = true
+                                    isHorizontalScrollBarEnabled = false
+                                    // Important: permettre le scroll dans la WebView
+                                    overScrollMode = android.view.View.OVER_SCROLL_ALWAYS
+                                    scrollBarStyle = android.view.View.SCROLLBARS_INSIDE_OVERLAY
                                     setBackgroundColor(0xFFFFFFFF.toInt())
                                     
                                     val fullHtml = """
@@ -243,7 +266,8 @@ fun ScraperScreen(
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(600.dp) // Augmenté pour voir plus de contenu
+                                .height(800.dp) // Augmenté pour voir plus de contenu, avec scrolling interne
+                                .nestedScroll(webViewScrollConnection) // Permettre le scroll dans la WebView
                         )
                     }
                     
