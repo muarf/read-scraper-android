@@ -24,7 +24,7 @@ class PreferencesManager(context: Context) {
     }
     
     val apiUrl: Flow<String?> = dataStore.data.map { preferences ->
-        preferences[API_URL] ?: "http://104.244.74.191:5000"
+        preferences[API_URL] ?: "http://104.244.74.191"
     }
     
     suspend fun saveApiKey(key: String) {
