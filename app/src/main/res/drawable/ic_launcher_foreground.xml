@@ -4,14 +4,55 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Journal ouvert avec des lignes de texte -->
     <group
-        android:scaleX="0.92"
-        android:scaleY="0.92"
-        android:translateX="4.32"
-        android:translateY="4.32">
+        android:scaleX="0.85"
+        android:scaleY="0.85"
+        android:translateX="8.1"
+        android:translateY="8.1">
+        <!-- Page de gauche du journal -->
         <path
             android:fillColor="#FFFFFF"
-            android:pathData="M54,27L54,81M27,54L81,54"/>
+            android:pathData="M18,18 L18,90 L48,90 L48,18 Z"/>
+        
+        <!-- Page de droite du journal -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M54,18 L54,90 L84,90 L84,18 Z"/>
+        
+        <!-- Lignes de texte sur la page de gauche -->
+        <path
+            android:fillColor="#1976D2"
+            android:pathData="M24,28 L42,28 L42,32 L24,32 Z"/>
+        <path
+            android:fillColor="#1976D2"
+            android:pathData="M24,38 L42,38 L42,42 L24,42 Z"/>
+        <path
+            android:fillColor="#1976D2"
+            android:pathData="M24,48 L36,48 L36,52 L24,52 Z"/>
+        <path
+            android:fillColor="#1976D2"
+            android:pathData="M24,58 L42,58 L42,62 L24,62 Z"/>
+        <path
+            android:fillColor="#1976D2"
+            android:pathData="M24,68 L38,68 L38,72 L24,72 Z"/>
+        
+        <!-- Lignes de texte sur la page de droite -->
+        <path
+            android:fillColor="#1976D2"
+            android:pathData="M60,28 L78,28 L78,32 L60,32 Z"/>
+        <path
+            android:fillColor="#1976D2"
+            android:pathData="M60,38 L78,38 L78,42 L60,42 Z"/>
+        <path
+            android:fillColor="#1976D2"
+            android:pathData="M60,48 L72,48 L72,52 L60,52 Z"/>
+        <path
+            android:fillColor="#1976D2"
+            android:pathData="M60,58 L78,58 L78,62 L60,62 Z"/>
+        <path
+            android:fillColor="#1976D2"
+            android:pathData="M60,68 L76,68 L76,72 L60,72 Z"/>
     </group>
 </vector>
 

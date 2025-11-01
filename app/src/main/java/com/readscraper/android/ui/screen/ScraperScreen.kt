@@ -48,12 +48,13 @@ fun ScraperScreen(
         }
     }
     
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
         // Titre
         Text(
             text = "Presse Scraper",
@@ -231,8 +232,9 @@ fun ScraperScreen(
                                     settings.loadWithOverviewMode = true
                                     settings.useWideViewPort = true
                                     settings.setSupportZoom(true)
-                                    settings.builtInZoomControls = false
-                                    settings.displayZoomControls = false
+                                    settings.builtInZoomControls = true
+                                    settings.displayZoomControls = true
+                                    settings.textZoom = 150 // Augmenter la taille du texte de 50%
                                     // Activer le scrolling vertical dans la WebView
                                     isVerticalScrollBarEnabled = true
                                     isHorizontalScrollBarEnabled = false
@@ -245,19 +247,33 @@ fun ScraperScreen(
                                         <!DOCTYPE html>
                                         <html>
                                         <head>
-                                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                                            <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
                                             <style>
+                                                * {
+                                                    -webkit-text-size-adjust: 100%;
+                                                }
                                                 body {
                                                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                                                    line-height: 1.6;
+                                                    font-size: 18px;
+                                                    line-height: 1.8;
                                                     max-width: 100%;
                                                     margin: 0;
-                                                    padding: 16px;
+                                                    padding: 20px;
                                                     color: #333;
+                                                }
+                                                h1, h2, h3, h4, h5, h6 {
+                                                    font-size: 1.3em;
+                                                    margin-top: 1.2em;
+                                                    margin-bottom: 0.8em;
+                                                }
+                                                p {
+                                                    margin-bottom: 1em;
                                                 }
                                                 img {
                                                     max-width: 100%;
                                                     height: auto;
+                                                    display: block;
+                                                    margin: 1em auto;
                                                 }
                                                 a {
                                                     color: #1976d2;
@@ -271,11 +287,16 @@ fun ScraperScreen(
                                     """.trimIndent()
                                     
                                     loadDataWithBaseURL("http://104.244.74.191", fullHtml, "text/html", "UTF-8", null)
+                                    
+                                    // Appliquer un zoom initial pour améliorer la lisibilité
+                                    post {
+                                        zoomIn()
+                                    }
                                 }
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(600.dp) // Hauteur fixe, la WebView gère son propre scroll
+                                .height(800.dp) // Hauteur fixe suffisante pour bonne lisibilité
                         )
                     }
                     
@@ -332,6 +353,7 @@ fun ScraperScreen(
             LaunchedEffect(Unit) {
                 viewModel.getTempApiKey()
             }
+        }
         }
     }
 }

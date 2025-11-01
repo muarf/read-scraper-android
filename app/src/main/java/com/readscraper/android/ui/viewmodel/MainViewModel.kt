@@ -107,6 +107,11 @@ class MainViewModel(
                 onSuccess = { response ->
                     if (response.cached && response.article_id != null) {
                         // Article en cache, récupérer directement
+                        // Conserver le job_id si présent pour permettre le rejet
+                        val jobId = response.job_id
+                        _uiState.value = _uiState.value.copy(
+                            currentJobId = jobId
+                        )
                         getArticle(response.article_id)
                     } else if (response.job_id != null) {
                         // Nouveau job, commencer le polling
@@ -146,9 +151,17 @@ class MainViewModel(
                         
                         when (status.status) {
                             "completed" -> {
+                                // Arrêter le polling même si article_id est null (PDF peut être généré sans article_id dans certains cas)
+                                stopPolling()
                                 if (status.article_id != null) {
                                     getArticle(status.article_id)
-                                    stopPolling()
+                                } else {
+                                    // Job terminé mais pas d'article_id - peut-être que le PDF est disponible directement
+                                    _uiState.value = _uiState.value.copy(
+                                        isLoading = false,
+                                        isPolling = false,
+                                        errorMessage = "Job terminé mais aucun article trouvé"
+                                    )
                                 }
                             }
                             "failed" -> {
@@ -183,12 +196,14 @@ class MainViewModel(
     private fun getArticle(articleId: String) {
         viewModelScope.launch {
             val apiKey = _uiState.value.apiKey ?: return@launch
+            val currentJobId = _uiState.value.currentJobId // Conserver le job_id
             repository.getArticle(apiKey, articleId).fold(
                 onSuccess = { article ->
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         article = article,
-                        isPolling = false
+                        isPolling = false,
+                        currentJobId = currentJobId // Conserver le job_id pour permettre le rejet
                     )
                 },
                 onFailure = { error ->

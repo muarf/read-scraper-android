@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
+import kotlinx.coroutines.delay
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.readscraper.android.data.preferences.PreferencesManager
@@ -22,6 +23,7 @@ import com.readscraper.android.ui.screen.ArticleDetailScreen
 import com.readscraper.android.ui.screen.ArticlesScreen
 import com.readscraper.android.ui.screen.ScraperScreen
 import com.readscraper.android.ui.screen.SettingsScreen
+import com.readscraper.android.ui.screen.SplashScreen
 import com.readscraper.android.ui.theme.ReadScraperTheme
 import com.readscraper.android.ui.viewmodel.ArticlesViewModel
 import com.readscraper.android.ui.viewmodel.MainViewModel
@@ -35,17 +37,26 @@ class MainActivity : ComponentActivity() {
         
         setContent {
             ReadScraperTheme {
+                var isSplashVisible by remember { mutableStateOf(true) }
+                
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    val navController = rememberNavController()
-                    
-                    Scaffold(
-                        bottomBar = {
-                            BottomNavigationBar(navController = navController)
+                    if (isSplashVisible) {
+                        SplashScreen()
+                        LaunchedEffect(Unit) {
+                            delay(1500) // Afficher le splash pendant 1.5 secondes
+                            isSplashVisible = false
                         }
-                    ) { paddingValues ->
+                    } else {
+                        val navController = rememberNavController()
+                        
+                        Scaffold(
+                            bottomBar = {
+                                BottomNavigationBar(navController = navController)
+                            }
+                        ) { paddingValues ->
                         NavHost(
                             navController = navController,
                             startDestination = "scraper",
