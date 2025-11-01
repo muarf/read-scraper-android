@@ -64,10 +64,22 @@ class ReadScraperRepository {
     suspend fun downloadPdf(apiKey: String, articleId: String): Result<ByteArray> = withContext(Dispatchers.IO) {
         try {
             val response = api.downloadPdf(apiKey, articleId)
-            if (response.isSuccessful && response.body() != null) {
-                Result.success(response.body()!!.bytes())
-            } else {
-                Result.failure(Exception("Erreur: ${response.code()} ${response.message()}"))
+            when {
+                response.isSuccessful && response.body() != null -> {
+                    val bytes = response.body()!!.bytes()
+                    if (bytes.isNotEmpty()) {
+                        Result.success(bytes)
+                    } else {
+                        Result.failure(Exception("Erreur: Le PDF est vide"))
+                    }
+                }
+                response.code() == 404 -> {
+                    Result.failure(Exception("Erreur: 404 - PDF non trouvé. L'article n'a peut-être pas encore de PDF généré."))
+                }
+                else -> {
+                    val errorBody = response.errorBody()?.string() ?: response.message()
+                    Result.failure(Exception("Erreur: ${response.code()} - $errorBody"))
+                }
             }
         } catch (e: Exception) {
             Result.failure(e)
