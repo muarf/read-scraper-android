@@ -37,11 +37,14 @@ fun ArticleDetailScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
+    var isDownloading by remember { mutableStateOf(false) }
+    
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            downloadPdf(article.id, apiKey, context, scope)
+            isDownloading = true
+            downloadPdf(article.id, apiKey, article.pdf_path, context, scope) { isDownloading = false }
         } else {
             Toast.makeText(context, "Permission refusée", Toast.LENGTH_SHORT).show()
         }
@@ -92,13 +95,11 @@ fun ArticleDetailScreen(
             
             Divider()
             
-            var isDownloading by remember { mutableStateOf(false) }
-            
             Button(
                 onClick = {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         isDownloading = true
-                        downloadPdf(article.id, apiKey, context, scope) { isDownloading = false }
+                        downloadPdf(article.id, apiKey, article.pdf_path, context, scope) { isDownloading = false }
                     } else {
                         if (ContextCompat.checkSelfPermission(
                                 context,
@@ -106,7 +107,7 @@ fun ArticleDetailScreen(
                             ) == PackageManager.PERMISSION_GRANTED
                         ) {
                             isDownloading = true
-                            downloadPdf(article.id, apiKey, context, scope) { isDownloading = false }
+                            downloadPdf(article.id, apiKey, article.pdf_path, context, scope) { isDownloading = false }
                         } else {
                             permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
                         }
@@ -133,16 +134,16 @@ fun ArticleDetailScreen(
                 )
             }
             
-            if (article.url.isNotBlank()) {
-                OutlinedButton(
-                    onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(article.url))
-                        context.startActivity(intent)
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Ouvrir l'article original")
-                }
+            OutlinedButton(
+                onClick = {
+                    // Ouvrir l'article sur le site web : http://104.244.74.191/read/article/{article_id}
+                    val articleUrl = "http://104.244.74.191/read/article/${article.id}"
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(articleUrl))
+                    context.startActivity(intent)
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Ouvrir l'article")
             }
         }
     }
@@ -151,63 +152,77 @@ fun ArticleDetailScreen(
 private fun downloadPdf(
     articleId: String,
     apiKey: String?,
+    pdfPath: String?,
     context: android.content.Context,
     scope: kotlinx.coroutines.CoroutineScope,
     onComplete: () -> Unit = {}
 ) {
-    if (apiKey == null) {
-        onComplete()
-        return
-    }
-    
     scope.launch {
         try {
-            val repository = ReadScraperRepository()
-            repository.downloadPdf(apiKey, articleId).fold(
-                onSuccess = { pdfBytes ->
-                    if (pdfBytes.isEmpty()) {
-                        android.os.Handler(android.os.Looper.getMainLooper()).post {
-                            Toast.makeText(
-                                context,
-                                "Le PDF est vide ou n'existe pas",
-                                Toast.LENGTH_LONG
-                            ).show()
-                            onComplete()
-                        }
-                        return@fold
+            val pdfBytes: ByteArray? = if (pdfPath != null) {
+                // Essayer d'abord avec l'URL statique
+                try {
+                    val staticUrl = if (pdfPath.startsWith("http")) {
+                        pdfPath
+                    } else {
+                        "http://104.244.74.191${if (pdfPath.startsWith("/")) pdfPath else "/$pdfPath"}"
                     }
                     
-                    val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                    val fileName = "article_${articleId}.pdf"
-                    val file = java.io.File(downloadsDir, fileName)
+                    val url = java.net.URL(staticUrl)
+                    val connection = url.openConnection() as java.net.HttpURLConnection
+                    connection.requestMethod = "GET"
+                    connection.connectTimeout = 30000
+                    connection.readTimeout = 30000
                     
-                    java.io.FileOutputStream(file).use { it.write(pdfBytes) }
-                    
-                    android.os.Handler(android.os.Looper.getMainLooper()).post {
-                        Toast.makeText(
-                            context,
-                            "PDF téléchargé: $fileName",
-                            Toast.LENGTH_LONG
-                        ).show()
-                        onComplete()
+                    if (connection.responseCode == 200) {
+                        connection.inputStream.readBytes()
+                    } else {
+                        null
                     }
-                },
-                onFailure = { error ->
-                    android.os.Handler(android.os.Looper.getMainLooper()).post {
-                        val errorMessage = when {
-                            error.message?.contains("404") == true -> "PDF non trouvé (404). L'article n'a peut-être pas encore de PDF généré."
-                            error.message?.contains("Erreur: 404") == true -> "PDF non trouvé. L'article n'a peut-être pas encore de PDF généré."
-                            else -> "Erreur: ${error.message ?: "Erreur inconnue"}"
-                        }
-                        Toast.makeText(
-                            context,
-                            errorMessage,
-                            Toast.LENGTH_LONG
-                        ).show()
-                        onComplete()
-                    }
+                } catch (e: Exception) {
+                    null
                 }
-            )
+            } else {
+                null
+            }
+            
+            // Si l'URL statique n'a pas fonctionné, essayer l'endpoint API
+            val finalPdfBytes = pdfBytes ?: if (apiKey != null) {
+                val repository = ReadScraperRepository()
+                repository.downloadPdf(apiKey, articleId).fold(
+                    onSuccess = { it },
+                    onFailure = { null }
+                )
+            } else {
+                null
+            }
+            
+            if (finalPdfBytes == null || finalPdfBytes.isEmpty()) {
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    Toast.makeText(
+                        context,
+                        "PDF non trouvé. L'article n'a peut-être pas encore de PDF généré.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    onComplete()
+                }
+                return@launch
+            }
+            
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val fileName = "article_${articleId}.pdf"
+            val file = java.io.File(downloadsDir, fileName)
+            
+            java.io.FileOutputStream(file).use { it.write(finalPdfBytes) }
+            
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                Toast.makeText(
+                    context,
+                    "PDF téléchargé: $fileName",
+                    Toast.LENGTH_LONG
+                ).show()
+                onComplete()
+            }
         } catch (e: Exception) {
             android.os.Handler(android.os.Looper.getMainLooper()).post {
                 Toast.makeText(
