@@ -50,10 +50,11 @@ fun ScraperScreen(
         }
     }
     
+    val scrollState = rememberScrollState()
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -203,12 +204,17 @@ fun ScraperScreen(
                             fontWeight = FontWeight.Bold
                         )
                         
-                        // Connection pour permettre le scroll dans la WebView
-                        val webViewScrollConnection = remember {
+                        // Connection pour permettre le scroll dans la WebView en désactivant le scroll parent
+                        val webViewScrollConnection = remember(scrollState) {
                             object : NestedScrollConnection {
                                 override fun onPreScroll(available: androidx.compose.ui.geometry.Offset, source: NestedScrollSource): androidx.compose.ui.geometry.Offset {
-                                    // Consommer le scroll vertical pour permettre à la WebView de gérer
+                                    // Ne pas consommer le scroll, laisser la WebView le gérer
                                     return androidx.compose.ui.geometry.Offset.Zero
+                                }
+                                
+                                override suspend fun onPostFling(consumed: androidx.compose.ui.unit.Velocity, available: androidx.compose.ui.unit.Velocity): androidx.compose.ui.unit.Velocity {
+                                    // Laisser la WebView gérer le fling
+                                    return androidx.compose.ui.unit.Velocity.Zero
                                 }
                             }
                         }
