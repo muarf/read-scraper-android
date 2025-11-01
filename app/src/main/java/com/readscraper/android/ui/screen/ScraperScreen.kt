@@ -321,7 +321,7 @@ private fun downloadPdf(
                         // Ouvrir automatiquement le PDF
                         try {
                             val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                                android.content.FileProvider.getUriForFile(
+                                FileProvider.getUriForFile(
                                     context,
                                     "${context.packageName}.fileprovider",
                                     file
