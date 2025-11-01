@@ -322,7 +322,9 @@ private fun downloadPdf(
                     }
                     
                     if (resolved != null) {
-                        Log.d("ArticleDetail", "Application trouvée: ${resolved.activityInfo.packageName}/${resolved.activityInfo.name}")
+                        val packageName = resolved.activityInfo?.packageName ?: "Unknown"
+                        val activityName = resolved.activityInfo?.name ?: "Unknown"
+                        Log.d("ArticleDetail", "Application trouvée: $packageName/$activityName")
                         try {
                             context.startActivity(intent)
                             Toast.makeText(
