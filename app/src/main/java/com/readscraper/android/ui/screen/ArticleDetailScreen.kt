@@ -73,85 +73,87 @@ fun ArticleDetailScreen(
         Column(
             modifier = modifier
                 .fillMaxSize()
-                .padding(paddingValues),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(paddingValues)
         ) {
+            // Section header scrollable
             Column(
                 modifier = Modifier
                     .padding(16.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-            Text(
-                text = article.title,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
-            
-            if (article.site_source != null) {
                 Text(
-                    text = "Source: ${article.site_source}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = article.title,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
                 )
-            }
-            
-            Text(
-                text = "Date: ${article.created_at}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            
-            Divider()
-            
-            Button(
-                onClick = {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        isDownloading = true
-                        downloadPdf(article.id, apiKey, article.pdf_path, context, scope) { isDownloading = false }
-                    } else {
-                        if (ContextCompat.checkSelfPermission(
-                                context,
-                                Manifest.permission.WRITE_EXTERNAL_STORAGE
-                            ) == PackageManager.PERMISSION_GRANTED
-                        ) {
-                            isDownloading = true
-                            downloadPdf(article.id, apiKey, article.pdf_path, context, scope) { isDownloading = false }
-                        } else {
-                            permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = apiKey != null && !isDownloading && article.pdf_path != null
-            ) {
-                if (isDownloading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
+                
+                if (article.site_source != null) {
+                    Text(
+                        text = "Source: ${article.site_source}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
                 }
-                Text(if (article.pdf_path == null) "PDF non disponible" else "Télécharger le PDF")
-            }
-            
-            if (article.pdf_path == null) {
+                
                 Text(
-                    text = "Aucun PDF disponible pour cet article",
+                    text = "Date: ${article.created_at}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                
+                Divider()
+                
+                Button(
+                    onClick = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            isDownloading = true
+                            downloadPdf(article.id, apiKey, article.pdf_path, context, scope) { isDownloading = false }
+                        } else {
+                            if (ContextCompat.checkSelfPermission(
+                                    context,
+                                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                                ) == PackageManager.PERMISSION_GRANTED
+                            ) {
+                                isDownloading = true
+                                downloadPdf(article.id, apiKey, article.pdf_path, context, scope) { isDownloading = false }
+                            } else {
+                                permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = apiKey != null && !isDownloading && article.pdf_path != null
+                ) {
+                    if (isDownloading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Text(if (article.pdf_path == null) "PDF non disponible" else "Télécharger le PDF")
+                }
+                
+                if (article.pdf_path == null) {
+                    Text(
+                        text = "Aucun PDF disponible pour cet article",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
+                Divider()
+                
+                // Afficher l'article directement depuis l'URL
+                Text(
+                    text = "Contenu de l'article",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
             }
             
-            Divider()
-            
-            // Afficher l'article directement depuis l'URL
-            Text(
-                text = "Contenu de l'article",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            
+            // WebView dans sa propre zone avec taille définie
             val articleUrl = "http://104.244.74.191/read/article/${article.id}"
             Log.d("ArticleDetail", "Chargement article depuis URL: $articleUrl")
             
@@ -277,10 +279,9 @@ fun ArticleDetailScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight()
                     .weight(1f)
+                    .height(0.dp) // Nécessaire pour que weight fonctionne
             )
-            }
         }
     }
 }
