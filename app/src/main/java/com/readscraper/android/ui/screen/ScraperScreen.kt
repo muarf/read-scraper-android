@@ -17,7 +17,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import com.readscraper.android.data.repository.ReadScraperRepository
 import com.readscraper.android.ui.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
@@ -186,7 +188,66 @@ fun ScraperScreen(
                         )
                     }
                     
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Divider()
+                    
+                    // Afficher le contenu HTML de l'article
+                    val htmlContent = article.html_content
+                    if (htmlContent != null && htmlContent.isNotBlank()) {
+                        Text(
+                            text = "Contenu de l'article",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        AndroidView(
+                            factory = { ctx ->
+                                android.webkit.WebView(ctx).apply {
+                                    webViewClient = object : android.webkit.WebViewClient() {}
+                                    
+                                    settings.javaScriptEnabled = true
+                                    settings.loadWithOverviewMode = true
+                                    settings.useWideViewPort = true
+                                    setBackgroundColor(0xFFFFFFFF.toInt())
+                                    
+                                    val fullHtml = """
+                                        <!DOCTYPE html>
+                                        <html>
+                                        <head>
+                                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                                            <style>
+                                                body {
+                                                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                                                    line-height: 1.6;
+                                                    max-width: 100%;
+                                                    margin: 0;
+                                                    padding: 16px;
+                                                    color: #333;
+                                                }
+                                                img {
+                                                    max-width: 100%;
+                                                    height: auto;
+                                                }
+                                                a {
+                                                    color: #1976d2;
+                                                }
+                                            </style>
+                                        </head>
+                                        <body>
+                                            $htmlContent
+                                        </body>
+                                        </html>
+                                    """.trimIndent()
+                                    
+                                    loadDataWithBaseURL("http://104.244.74.191", fullHtml, "text/html", "UTF-8", null)
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(400.dp)
+                        )
+                    }
+                    
+                    Divider()
                     
                     Button(
                         onClick = {
@@ -204,9 +265,10 @@ fun ScraperScreen(
                                 }
                             }
                         },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = article.pdf_path != null
                     ) {
-                        Text("Télécharger le PDF")
+                        Text(if (article.pdf_path == null) "PDF non disponible" else "Télécharger le PDF")
                     }
                 }
             }
@@ -228,14 +290,15 @@ private fun downloadPdf(
 ) {
     val articleId = viewModel.uiState.value.article?.id ?: return
     val apiKey = viewModel.uiState.value.apiKey ?: return
-    val article = viewModel.uiState.value.article
     
-    scope.launch {
+    scope.launch(kotlinx.coroutines.Dispatchers.IO) {
         try {
+            android.util.Log.d("ScraperScreen", "Téléchargement PDF - articleId: $articleId")
             val repository = ReadScraperRepository()
             repository.downloadPdf(apiKey, articleId).fold(
                 onSuccess = { pdfBytes ->
                     if (pdfBytes.isEmpty()) {
+                        android.util.Log.e("ScraperScreen", "PDF vide")
                         android.os.Handler(android.os.Looper.getMainLooper()).post {
                             Toast.makeText(
                                 context,
@@ -250,17 +313,64 @@ private fun downloadPdf(
                     val fileName = "article_${articleId}.pdf"
                     val file = File(downloadsDir, fileName)
                     
+                    android.util.Log.d("ScraperScreen", "Écriture PDF dans: ${file.absolutePath}")
                     FileOutputStream(file).use { it.write(pdfBytes) }
+                    android.util.Log.d("ScraperScreen", "PDF écrit avec succès, taille: ${file.length()} bytes")
                     
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
-                        Toast.makeText(
-                            context,
-                            "PDF téléchargé: $fileName",
-                            Toast.LENGTH_LONG
-                        ).show()
+                        // Ouvrir automatiquement le PDF
+                        try {
+                            val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                                android.content.FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.fileprovider",
+                                    file
+                                )
+                            } else {
+                                android.net.Uri.fromFile(file)
+                            }
+                            
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                setDataAndType(uri, "application/pdf")
+                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                            }
+                            
+                            var resolved = intent.resolveActivity(context.packageManager)
+                            if (resolved == null) {
+                                intent.type = "*/*"
+                                resolved = intent.resolveActivity(context.packageManager)
+                            }
+                            
+                            if (resolved != null) {
+                                context.startActivity(intent)
+                                Toast.makeText(
+                                    context,
+                                    "PDF téléchargé et ouvert",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    "PDF téléchargé dans: $fileName\nAucune application de lecture PDF trouvée\n\nInstallez MuPDF (open source, sans pub) depuis F-Droid ou Play Store",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        } catch (e: Exception) {
+                            android.util.Log.e("ScraperScreen", "Erreur ouverture PDF", e)
+                            Toast.makeText(
+                                context,
+                                "PDF téléchargé: $fileName\nErreur lors de l'ouverture: ${e.message}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
                     }
                 },
                 onFailure = { error ->
+                    android.util.Log.e("ScraperScreen", "Erreur téléchargement PDF", error)
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
                         val errorMessage = when {
                             error.message?.contains("404") == true -> "PDF non trouvé (404). L'article n'a peut-être pas encore de PDF généré."
@@ -276,6 +386,7 @@ private fun downloadPdf(
                 }
             )
         } catch (e: Exception) {
+            android.util.Log.e("ScraperScreen", "Exception téléchargement PDF", e)
             android.os.Handler(android.os.Looper.getMainLooper()).post {
                 Toast.makeText(
                     context,

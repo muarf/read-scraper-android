@@ -153,137 +153,99 @@ fun ArticleDetailScreen(
                 )
             }
             
-            // WebView dans sa propre zone avec taille définie
-            val articleUrl = "http://104.244.74.191/read/article/${article.id}"
-            Log.d("ArticleDetail", "Chargement article depuis URL: $articleUrl")
-            
-            AndroidView(
-                factory = { ctx ->
-                    WebView(ctx).apply {
-                        Log.d("ArticleDetail", "Création WebView")
-                        webViewClient = object : WebViewClient() {
-                            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
-                                super.onPageStarted(view, url, favicon)
-                                Log.d("ArticleDetail", "Début chargement page: $url")
-                            }
-                            
-                            override fun onPageFinished(view: WebView?, url: String?) {
-                                super.onPageFinished(view, url)
-                                Log.d("ArticleDetail", "Page WebView chargée: $url")
-                                
-                                // Vérifier le contenu de la page après chargement
-                                view?.postDelayed({
-                                    try {
-                                        val html = view.title
-                                        val scrollY = view.scrollY
-                                        val contentHeight = view.contentHeight
-                                        val height = view.height
-                                        val width = view.width
-                                        
-                                        Log.d("ArticleDetail", "WebView après chargement - Title: $html, ScrollY: $scrollY, ContentHeight: $contentHeight, ViewSize: ${width}x${height}")
-                                        
-                                        // Essayer d'injecter du JavaScript pour voir le contenu
-                                        view.evaluateJavascript("document.body.innerHTML.length") { result ->
-                                            Log.d("ArticleDetail", "Longueur HTML body: $result")
-                                        }
-                                        
-                                        view.evaluateJavascript("document.body.scrollHeight") { result ->
-                                            Log.d("ArticleDetail", "Hauteur scroll body: $result")
-                                        }
-                                        
-                                        view.evaluateJavascript("window.getComputedStyle(document.body).display") { result ->
-                                            Log.d("ArticleDetail", "Display body: $result")
-                                        }
-                                        
-                                        view.evaluateJavascript("document.body.style.opacity") { result ->
-                                            Log.d("ArticleDetail", "Opacity body: $result")
-                                        }
-                                    } catch (e: Exception) {
-                                        Log.e("ArticleDetail", "Erreur lors de l'inspection de la page", e)
-                                    }
-                                }, 500)
-                            }
-                            
-                            override fun onReceivedError(view: WebView?, request: android.webkit.WebResourceRequest?, error: android.webkit.WebResourceError?) {
-                                super.onReceivedError(view, request, error)
-                                val errorCode = error?.errorCode ?: -1
-                                val description = error?.description?.toString() ?: "Unknown"
-                                val failingUrl = request?.url?.toString() ?: "Unknown"
-                                val isMainFrame = request?.isForMainFrame ?: false
-                                Log.e("ArticleDetail", "Erreur WebView: $errorCode - $description - $failingUrl (mainFrame: $isMainFrame)")
-                            }
-                            
-                            override fun onReceivedHttpError(view: WebView?, request: android.webkit.WebResourceRequest?, errorResponse: android.webkit.WebResourceResponse?) {
-                                super.onReceivedHttpError(view, request, errorResponse)
-                                val statusCode = errorResponse?.statusCode ?: -1
-                                val url = request?.url?.toString() ?: "Unknown"
-                                val isMainFrame = request?.isForMainFrame ?: false
-                                Log.e("ArticleDetail", "Erreur HTTP WebView: $statusCode pour $url (mainFrame: $isMainFrame)")
-                            }
-                        }
-                        
-                        settings.javaScriptEnabled = true
-                        settings.domStorageEnabled = true
-                        settings.loadWithOverviewMode = true
-                        settings.useWideViewPort = true
-                        settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                        settings.builtInZoomControls = true
-                        settings.displayZoomControls = false
-                        settings.setSupportZoom(true)
-                        settings.allowFileAccess = true
-                        settings.allowContentAccess = true
-                        
-                        // Forcer un background blanc
-                        setBackgroundColor(0xFFFFFFFF.toInt())
-                        
-                        // Désactiver le cache pour éviter les problèmes
-                        settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
-                        
-                        // Ajouter WebChromeClient pour capturer les erreurs JS et console
-                        webChromeClient = object : android.webkit.WebChromeClient() {
-                            override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage?): Boolean {
-                                val level = consoleMessage?.messageLevel()
-                                val message = consoleMessage?.message()
-                                val sourceId = consoleMessage?.sourceId()
-                                val lineNumber = consoleMessage?.lineNumber()
-                                
-                                when (level) {
-                                    android.webkit.ConsoleMessage.MessageLevel.ERROR -> {
-                                        Log.e("ArticleDetail", "JS Console ERROR: $message (at $sourceId:$lineNumber)")
-                                    }
-                                    android.webkit.ConsoleMessage.MessageLevel.WARNING -> {
-                                        Log.w("ArticleDetail", "JS Console WARNING: $message (at $sourceId:$lineNumber)")
-                                    }
-                                    android.webkit.ConsoleMessage.MessageLevel.LOG -> {
-                                        Log.d("ArticleDetail", "JS Console: $message")
-                                    }
-                                    android.webkit.ConsoleMessage.MessageLevel.DEBUG -> {
-                                        Log.d("ArticleDetail", "JS Console DEBUG: $message")
-                                    }
-                                    else -> {
-                                        Log.d("ArticleDetail", "JS Console ($level): $message")
-                                    }
+            // WebView pour afficher le contenu HTML de l'article
+            val htmlContent = article.html_content
+            if (htmlContent != null && htmlContent.isNotBlank()) {
+                Log.d("ArticleDetail", "Affichage HTML direct depuis article.html_content (${htmlContent.length} caractères)")
+                
+                AndroidView(
+                    factory = { ctx ->
+                        WebView(ctx).apply {
+                            webViewClient = object : WebViewClient() {
+                                override fun onPageFinished(view: WebView?, url: String?) {
+                                    super.onPageFinished(view, url)
+                                    Log.d("ArticleDetail", "HTML chargé dans WebView")
                                 }
-                                return true
                             }
                             
-                            override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                                super.onProgressChanged(view, newProgress)
-                                Log.d("ArticleDetail", "Progress WebView: $newProgress%")
-                            }
+                            settings.javaScriptEnabled = true
+                            settings.domStorageEnabled = true
+                            settings.loadWithOverviewMode = true
+                            settings.useWideViewPort = true
+                            settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+                            settings.builtInZoomControls = true
+                            settings.displayZoomControls = false
+                            settings.setSupportZoom(true)
+                            
+                            setBackgroundColor(0xFFFFFFFF.toInt())
+                            
+                            // Créer un HTML complet avec styles pour un meilleur rendu
+                            val fullHtml = """
+                                <!DOCTYPE html>
+                                <html>
+                                <head>
+                                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                                    <style>
+                                        body {
+                                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                                            line-height: 1.6;
+                                            max-width: 100%;
+                                            margin: 0;
+                                            padding: 16px;
+                                            color: #333;
+                                        }
+                                        img {
+                                            max-width: 100%;
+                                            height: auto;
+                                        }
+                                        a {
+                                            color: #1976d2;
+                                        }
+                                    </style>
+                                </head>
+                                <body>
+                                    $htmlContent
+                                </body>
+                                </html>
+                            """.trimIndent()
+                            
+                            loadDataWithBaseURL("http://104.244.74.191", fullHtml, "text/html", "UTF-8", null)
                         }
-                        
-                        Log.d("ArticleDetail", "Chargement URL dans WebView: $articleUrl")
-                        Log.d("ArticleDetail", "WebView settings - JS: ${settings.javaScriptEnabled}, DOMStorage: ${settings.domStorageEnabled}, UserAgent: ${settings.userAgentString}")
-                        
-                        loadUrl(articleUrl)
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .height(0.dp) // Nécessaire pour que weight fonctionne
-            )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .height(0.dp)
+                )
+            } else {
+                // Fallback: charger depuis l'URL si pas de HTML
+                val articleUrl = "http://104.244.74.191/read/article/${article.id}"
+                Log.d("ArticleDetail", "Pas de html_content, chargement depuis URL: $articleUrl")
+                
+                AndroidView(
+                    factory = { ctx ->
+                        WebView(ctx).apply {
+                            webViewClient = object : WebViewClient() {
+                                override fun onPageFinished(view: WebView?, url: String?) {
+                                    super.onPageFinished(view, url)
+                                    Log.d("ArticleDetail", "Page chargée depuis URL: $url")
+                                }
+                            }
+                            
+                            settings.javaScriptEnabled = true
+                            settings.loadWithOverviewMode = true
+                            settings.useWideViewPort = true
+                            setBackgroundColor(0xFFFFFFFF.toInt())
+                            
+                            loadUrl(articleUrl)
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .height(0.dp)
+                )
+            }
         }
     }
 }
