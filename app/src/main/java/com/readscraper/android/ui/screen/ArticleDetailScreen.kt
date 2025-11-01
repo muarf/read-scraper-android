@@ -312,7 +312,7 @@ private fun downloadPdf(
                     Log.d("ArticleDetail", "Intent créé: action=${intent.action}, data=${intent.data}, type=${intent.type}")
                     
                     // Essayer d'abord avec le type spécifique
-                    var resolved = intent.resolveActivity(context.packageManager)
+                    var resolved: android.content.pm.ResolveInfo? = intent.resolveActivity(context.packageManager)
                     
                     // Si pas trouvé, essayer avec un type plus générique
                     if (resolved == null) {
@@ -322,8 +322,8 @@ private fun downloadPdf(
                     }
                     
                     if (resolved != null) {
-                        val packageName = resolved.activityInfo?.packageName ?: "Unknown"
-                        val activityName = resolved.activityInfo?.name ?: "Unknown"
+                        val packageName = resolved.activityInfo.packageName
+                        val activityName = resolved.activityInfo.name
                         Log.d("ArticleDetail", "Application trouvée: $packageName/$activityName")
                         try {
                             context.startActivity(intent)
