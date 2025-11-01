@@ -16,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -75,82 +76,81 @@ fun ArticleDetailScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Section header scrollable
+            // Section header fixe (pas scrollable)
             Column(
                 modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text = article.title,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 3,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
                 
-                if (article.site_source != null) {
-                    Text(
-                        text = "Source: ${article.site_source}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                
-                Text(
-                    text = "Date: ${article.created_at}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                
-                Divider()
-                
-                Button(
-                    onClick = {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            isDownloading = true
-                            downloadPdf(article.id, apiKey, article.pdf_path, context, scope) { isDownloading = false }
-                        } else {
-                            if (ContextCompat.checkSelfPermission(
-                                    context,
-                                    Manifest.permission.WRITE_EXTERNAL_STORAGE
-                                ) == PackageManager.PERMISSION_GRANTED
-                            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        if (article.site_source != null) {
+                            Text(
+                                text = "Source: ${article.site_source}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text(
+                            text = "Date: ${article.created_at}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    
+                    Button(
+                        onClick = {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                 isDownloading = true
                                 downloadPdf(article.id, apiKey, article.pdf_path, context, scope) { isDownloading = false }
                             } else {
-                                permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                                if (ContextCompat.checkSelfPermission(
+                                        context,
+                                        Manifest.permission.WRITE_EXTERNAL_STORAGE
+                                    ) == PackageManager.PERMISSION_GRANTED
+                                ) {
+                                    isDownloading = true
+                                    downloadPdf(article.id, apiKey, article.pdf_path, context, scope) { isDownloading = false }
+                                } else {
+                                    permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                                }
                             }
+                        },
+                        enabled = apiKey != null && !isDownloading && article.pdf_path != null
+                    ) {
+                        if (isDownloading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
                         }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = apiKey != null && !isDownloading && article.pdf_path != null
-                ) {
-                    if (isDownloading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(if (article.pdf_path == null) "PDF N/A" else "PDF", style = MaterialTheme.typography.labelSmall)
                     }
-                    Text(if (article.pdf_path == null) "PDF non disponible" else "Télécharger le PDF")
                 }
                 
                 if (article.pdf_path == null) {
                     Text(
-                        text = "Aucun PDF disponible pour cet article",
+                        text = "Aucun PDF disponible",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.error
                     )
                 }
                 
-                Divider()
-                
-                // Afficher l'article directement depuis l'URL
-                Text(
-                    text = "Contenu de l'article",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+                HorizontalDivider()
             }
             
             // WebView pour afficher le contenu HTML de l'article
@@ -300,9 +300,9 @@ private fun downloadPdf(
                 return@launch
             }
             
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            // Utiliser le cache interne (pas besoin de permission)
             val fileName = "article_${articleId}.pdf"
-            val file = java.io.File(downloadsDir, fileName)
+            val file = java.io.File(context.cacheDir, fileName)
             
             Log.d("ArticleDetail", "Écriture du PDF dans: ${file.absolutePath}")
             
@@ -340,34 +340,37 @@ private fun downloadPdf(
                         fileUri
                     }
                     
-                    // Créer un intent plus générique pour ouvrir le PDF
+                    // Chercher une app PDF (pas Photos/Gallery)
                     val intent = Intent(Intent.ACTION_VIEW).apply {
                         setDataAndType(uri, "application/pdf")
                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }
                     }
                     
                     Log.d("ArticleDetail", "Intent créé: action=${intent.action}, data=${intent.data}, type=${intent.type}")
                     
-                    // Essayer d'abord avec le type spécifique
-                    var resolved: android.content.ComponentName? = intent.resolveActivity(context.packageManager)
-                    
-                    // Si pas trouvé, essayer avec un type plus générique
-                    if (resolved == null) {
-                        Log.d("ArticleDetail", "Aucune app pour application/pdf, essai avec type générique")
-                        intent.type = "*/*"
-                        resolved = intent.resolveActivity(context.packageManager)
+                    val activities = context.packageManager.queryIntentActivities(intent, 0)
+                    val pdfActivity = activities.firstOrNull { activity ->
+                        val packageName = activity.activityInfo.packageName.lowercase()
+                        !packageName.contains("photos") && 
+                        !packageName.contains("gallery") && 
+                        !packageName.contains("image")
                     }
                     
-                    if (resolved != null) {
-                        val packageName = resolved.packageName
-                        val activityName = resolved.className
-                        Log.d("ArticleDetail", "Application trouvée: $packageName/$activityName")
+                    val pdfIntent = if (pdfActivity != null) {
+                        Intent(Intent.ACTION_VIEW).apply {
+                            setDataAndType(uri, "application/pdf")
+                            setClassName(pdfActivity.activityInfo.packageName, pdfActivity.activityInfo.name)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                    } else {
+                        intent // Fallback
+                    }
+                    
+                    if (pdfIntent != null) {
                         try {
-                            context.startActivity(intent)
+                            context.startActivity(pdfIntent)
                             Toast.makeText(
                                 context,
                                 "PDF téléchargé et ouvert",
@@ -375,11 +378,22 @@ private fun downloadPdf(
                             ).show()
                         } catch (e: Exception) {
                             Log.e("ArticleDetail", "Erreur lors du démarrage de l'activité", e)
-                            Toast.makeText(
-                                context,
-                                "PDF téléchargé dans: $fileName\nErreur lors de l'ouverture: ${e.message}",
-                                Toast.LENGTH_LONG
-                            ).show()
+                            // Fallback : essayer avec type générique
+                            try {
+                                val fallbackIntent = Intent(Intent.ACTION_VIEW).apply {
+                                    setDataAndType(uri, "*/*")
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(fallbackIntent)
+                                Toast.makeText(context, "PDF ouvert", Toast.LENGTH_SHORT).show()
+                            } catch (e2: Exception) {
+                                Toast.makeText(
+                                    context,
+                                    "PDF téléchargé dans le cache de l'app\nErreur lors de l'ouverture: ${e.message}",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
                         }
                     } else {
                         Log.w("ArticleDetail", "Aucune application trouvée pour ouvrir le PDF")

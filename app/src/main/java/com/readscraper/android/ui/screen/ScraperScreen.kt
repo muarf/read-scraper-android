@@ -243,7 +243,7 @@ fun ScraperScreen(
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(400.dp)
+                                .height(600.dp) // Augmenté pour voir plus de contenu
                         )
                     }
                     
@@ -309,9 +309,9 @@ private fun downloadPdf(
                         return@fold
                     }
                     
-                    val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                    // Utiliser le cache interne (pas besoin de permission)
                     val fileName = "article_${articleId}.pdf"
-                    val file = File(downloadsDir, fileName)
+                    val file = File(context.cacheDir, fileName)
                     
                     android.util.Log.d("ScraperScreen", "Écriture PDF dans: ${file.absolutePath}")
                     FileOutputStream(file).use { it.write(pdfBytes) }
@@ -330,23 +330,34 @@ private fun downloadPdf(
                                 android.net.Uri.fromFile(file)
                             }
                             
+                            // Chercher une app PDF (pas Photos/Gallery)
                             val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
                                 setDataAndType(uri, "application/pdf")
                                 addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                 addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                            }
+                            
+                            val activities = context.packageManager.queryIntentActivities(intent, 0)
+                            val pdfActivity = activities.firstOrNull { activity ->
+                                val packageName = activity.activityInfo.packageName.lowercase()
+                                !packageName.contains("photos") && 
+                                !packageName.contains("gallery") && 
+                                !packageName.contains("image")
+                            }
+                            
+                            val pdfIntent = if (pdfActivity != null) {
+                                android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                                    setDataAndType(uri, "application/pdf")
+                                    setClassName(pdfActivity.activityInfo.packageName, pdfActivity.activityInfo.name)
                                     addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                                 }
+                            } else {
+                                intent // Fallback
                             }
                             
-                            var resolved = intent.resolveActivity(context.packageManager)
-                            if (resolved == null) {
-                                intent.type = "*/*"
-                                resolved = intent.resolveActivity(context.packageManager)
-                            }
-                            
-                            if (resolved != null) {
-                                context.startActivity(intent)
+                            if (pdfIntent.resolveActivity(context.packageManager) != null) {
+                                context.startActivity(pdfIntent)
                                 Toast.makeText(
                                     context,
                                     "PDF téléchargé et ouvert",
