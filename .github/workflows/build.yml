@@ -41,20 +41,20 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build --no-daemon
       
-      - name: Assemble Release APK
-        run: ./gradlew assembleRelease --no-daemon
+      - name: Assemble Debug APK (signed)
+        run: ./gradlew assembleDebug --no-daemon
       
       - name: Find APK
         run: |
           find app/build/outputs -name "*.apk" -type f
-          ls -la app/build/outputs/apk/release/ || echo "Directory not found"
-          ls -la app/build/outputs/ || echo "Outputs directory not found"
+          ls -la app/build/outputs/apk/debug/ || echo "Debug directory not found"
+          ls -la app/build/outputs/apk/release/ || echo "Release directory not found"
       
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-release.apk
-          path: app/build/outputs/apk/release/*.apk
+          name: app-debug.apk
+          path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 7
       
