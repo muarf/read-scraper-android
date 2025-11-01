@@ -60,7 +60,10 @@ class MainViewModel(
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             repository.getTempApiKey().fold(
                 onSuccess = { response ->
-                    _uiState.value = _uiState.value.copy(apiKey = response.api_key)
+                    _uiState.value = _uiState.value.copy(
+                        apiKey = response.api_key,
+                        isLoading = false
+                    )
                     preferencesManager.saveApiKey(response.api_key)
                 },
                 onFailure = { error ->

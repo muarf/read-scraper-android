@@ -12,11 +12,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import com.readscraper.android.ui.viewmodel.ArticlesViewModel
 
 @Composable
 fun ArticlesScreen(
     viewModel: ArticlesViewModel,
+    navController: NavController,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -59,7 +61,12 @@ fun ArticlesScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(uiState.articles) { article ->
-                        ArticleItem(article = article)
+                        ArticleItem(
+                            article = article,
+                            onClick = {
+                                navController.navigate("article_detail/${article.id}")
+                            }
+                        )
                     }
                 }
             }
@@ -68,11 +75,14 @@ fun ArticlesScreen(
 }
 
 @Composable
-fun ArticleItem(article: com.readscraper.android.data.model.Article) {
+fun ArticleItem(
+    article: com.readscraper.android.data.model.Article,
+    onClick: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { },
+            .clickable(onClick = onClick),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
