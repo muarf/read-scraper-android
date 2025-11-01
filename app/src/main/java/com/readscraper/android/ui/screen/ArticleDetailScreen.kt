@@ -137,7 +137,8 @@ fun ArticleDetailScreen(
             OutlinedButton(
                 onClick = {
                     // Ouvrir l'article sur le site web : http://104.244.74.191/read/article/{article_id}
-                    val articleUrl = "http://104.244.74.191/read/article/${article.id}"
+                    // Note: l'interface web utilise le port 5000
+                    val articleUrl = "http://104.244.74.191:5000/read/article/${article.id}"
                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(articleUrl))
                     context.startActivity(intent)
                 },
@@ -165,7 +166,8 @@ private fun downloadPdf(
                     val staticUrl = if (pdfPath.startsWith("http")) {
                         pdfPath
                     } else {
-                        "http://104.244.74.191${if (pdfPath.startsWith("/")) pdfPath else "/$pdfPath"}"
+                        // L'URL statique utilise le port 5000 : http://104.244.74.191:5000/static/...
+                        "http://104.244.74.191:5000${if (pdfPath.startsWith("/")) pdfPath else "/$pdfPath"}"
                     }
                     
                     val url = java.net.URL(staticUrl)
