@@ -117,5 +117,19 @@ class ReadScraperRepository {
             Result.failure(e)
         }
     }
+    
+    suspend fun rejectArticle(apiKey: String, jobId: String): Result<RejectResponse> = withContext(Dispatchers.IO) {
+        try {
+            val response = api.rejectArticle(apiKey, jobId)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                val errorBody = response.errorBody()?.string() ?: response.message()
+                Result.failure(Exception("Erreur: ${response.code()} - $errorBody"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
 

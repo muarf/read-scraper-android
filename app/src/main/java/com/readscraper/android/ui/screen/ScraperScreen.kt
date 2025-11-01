@@ -11,10 +11,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.unit.Velocity
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,11 +48,9 @@ fun ScraperScreen(
         }
     }
     
-    val scrollState = rememberScrollState()
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(scrollState)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -123,8 +119,8 @@ fun ScraperScreen(
             }
         }
         
-        // Statut du job
-        if (uiState.jobStatus != null || uiState.isPolling) {
+        // Statut du job avec écran de chargement amélioré
+        if (uiState.jobStatus != null || uiState.isPolling || uiState.isLoading) {
             val jobStatus = uiState.jobStatus
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -134,34 +130,55 @@ fun ScraperScreen(
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text(
-                        text = "Étape actuelle: ${jobStatus?.current_step ?: "Initialisation"}",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                    // Icône newspaper avec animation
+                    Icon(
+                        imageVector = Icons.Default.MenuBook,
+                        contentDescription = "Chargement",
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.primary
                     )
-                    val stepDescription = jobStatus?.step_description
-                    if (stepDescription != null) {
-                        Text(
-                            text = stepDescription,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    } else {
-                        Text(
-                            text = "En attente de démarrage du scraping...",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
                     
-                    if (jobStatus?.status == "searching") {
-                        val searchResultsCount = jobStatus.search_results_count
-                        if (searchResultsCount != null) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Étape actuelle: ${jobStatus?.current_step ?: "Initialisation"}",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        val stepDescription = jobStatus?.step_description
+                        if (stepDescription != null) {
                             Text(
-                                text = "Résultats trouvés: $searchResultsCount",
-                                style = MaterialTheme.typography.bodySmall
+                                text = stepDescription,
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        } else {
+                            Text(
+                                text = "En attente de démarrage du scraping...",
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
                             )
                         }
+                        
+                        if (jobStatus?.status == "searching") {
+                            val searchResultsCount = jobStatus.search_results_count
+                            if (searchResultsCount != null) {
+                                Text(
+                                    text = "Résultats trouvés: $searchResultsCount",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                        
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(32.dp),
+                            strokeWidth = 3.dp
+                        )
                     }
                 }
             }
@@ -204,21 +221,7 @@ fun ScraperScreen(
                             fontWeight = FontWeight.Bold
                         )
                         
-                        // Connection pour permettre le scroll dans la WebView en désactivant le scroll parent
-                        val webViewScrollConnection = remember(scrollState) {
-                            object : NestedScrollConnection {
-                                override fun onPreScroll(available: androidx.compose.ui.geometry.Offset, source: NestedScrollSource): androidx.compose.ui.geometry.Offset {
-                                    // Ne pas consommer le scroll, laisser la WebView le gérer
-                                    return androidx.compose.ui.geometry.Offset.Zero
-                                }
-                                
-                                override suspend fun onPostFling(consumed: androidx.compose.ui.unit.Velocity, available: androidx.compose.ui.unit.Velocity): androidx.compose.ui.unit.Velocity {
-                                    // Laisser la WebView gérer le fling
-                                    return androidx.compose.ui.unit.Velocity.Zero
-                                }
-                            }
-                        }
-                        
+                        // WebView dans sa propre zone scrollable (hors de la Column scrollable)
                         AndroidView(
                             factory = { ctx ->
                                 android.webkit.WebView(ctx).apply {
@@ -272,33 +275,53 @@ fun ScraperScreen(
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(800.dp) // Augmenté pour voir plus de contenu, avec scrolling interne
-                                .nestedScroll(webViewScrollConnection) // Permettre le scroll dans la WebView
+                                .height(600.dp) // Hauteur fixe, la WebView gère son propre scroll
                         )
                     }
                     
                     Divider()
                     
-                    Button(
-                        onClick = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                downloadPdf(viewModel, context, scope)
-                            } else {
-                                if (ContextCompat.checkSelfPermission(
-                                        context,
-                                        Manifest.permission.WRITE_EXTERNAL_STORAGE
-                                    ) == PackageManager.PERMISSION_GRANTED
-                                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                     downloadPdf(viewModel, context, scope)
                                 } else {
-                                    permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                                    if (ContextCompat.checkSelfPermission(
+                                            context,
+                                            Manifest.permission.WRITE_EXTERNAL_STORAGE
+                                        ) == PackageManager.PERMISSION_GRANTED
+                                    ) {
+                                        downloadPdf(viewModel, context, scope)
+                                    } else {
+                                        permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                                    }
                                 }
+                            },
+                            modifier = Modifier.weight(1f),
+                            enabled = article.pdf_path != null
+                        ) {
+                            Text(if (article.pdf_path == null) "PDF N/A" else "PDF")
+                        }
+                        
+                        val currentJobId = uiState.currentJobId
+                        if (currentJobId != null) {
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.rejectArticle(currentJobId)
+                                    Toast.makeText(context, "Article rejeté", Toast.LENGTH_SHORT).show()
+                                },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error
+                                )
+                            ) {
+                                Text("Rejeter")
                             }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = article.pdf_path != null
-                    ) {
-                        Text(if (article.pdf_path == null) "PDF non disponible" else "Télécharger le PDF")
+                        }
                     }
                 }
             }

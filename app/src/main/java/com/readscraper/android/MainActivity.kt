@@ -5,6 +5,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -131,13 +133,39 @@ class MainActivity : ComponentActivity() {
                                         modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        CircularProgressIndicator()
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = androidx.compose.material.icons.Icons.Default.MenuBook,
+                                                contentDescription = "Chargement",
+                                                modifier = Modifier.size(64.dp),
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(48.dp),
+                                                strokeWidth = 4.dp
+                                            )
+                                            Text(
+                                                text = "Chargement de l'article...",
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
                                 } else if (article != null) {
                                     ArticleDetailScreen(
                                         article = article!!,
                                         apiKey = uiState.apiKey,
-                                        navController = navController
+                                        navController = navController,
+                                        jobId = uiState.currentJobId,
+                                        onReject = {
+                                            if (uiState.currentJobId != null) {
+                                                mainViewModel.rejectArticle(uiState.currentJobId)
+                                                navController.popBackStack()
+                                            }
+                                        }
                                     )
                                 } else {
                                     Box(

@@ -47,5 +47,11 @@ interface ReadScraperApi {
     suspend fun getDebugScreenshots(
         @Header("X-API-Key") apiKey: String
     ): Response<DebugScreenshotsResponse>
+    
+    @POST("/api/v1/job/{job_id}/reject")
+    suspend fun rejectArticle(
+        @Header("X-API-Key") apiKey: String,
+        @Path("job_id") jobId: String
+    ): Response<RejectResponse>
 }
 

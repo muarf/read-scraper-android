@@ -38,6 +38,8 @@ fun ArticleDetailScreen(
     article: Article,
     apiKey: String?,
     navController: NavController,
+    jobId: String? = null,
+    onReject: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -111,34 +113,50 @@ fun ArticleDetailScreen(
                         )
                     }
                     
-                    Button(
-                        onClick = {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                isDownloading = true
-                                downloadPdf(article.id, apiKey, article.pdf_path, context, scope) { isDownloading = false }
-                            } else {
-                                if (ContextCompat.checkSelfPermission(
-                                        context,
-                                        Manifest.permission.WRITE_EXTERNAL_STORAGE
-                                    ) == PackageManager.PERMISSION_GRANTED
-                                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                     isDownloading = true
                                     downloadPdf(article.id, apiKey, article.pdf_path, context, scope) { isDownloading = false }
                                 } else {
-                                    permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                                    if (ContextCompat.checkSelfPermission(
+                                            context,
+                                            Manifest.permission.WRITE_EXTERNAL_STORAGE
+                                        ) == PackageManager.PERMISSION_GRANTED
+                                    ) {
+                                        isDownloading = true
+                                        downloadPdf(article.id, apiKey, article.pdf_path, context, scope) { isDownloading = false }
+                                    } else {
+                                        permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                                    }
                                 }
+                            },
+                            enabled = apiKey != null && !isDownloading && article.pdf_path != null
+                        ) {
+                            if (isDownloading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
                             }
-                        },
-                        enabled = apiKey != null && !isDownloading && article.pdf_path != null
-                    ) {
-                        if (isDownloading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(if (article.pdf_path == null) "PDF N/A" else "PDF", style = MaterialTheme.typography.labelSmall)
                         }
-                        Text(if (article.pdf_path == null) "PDF N/A" else "PDF", style = MaterialTheme.typography.labelSmall)
+                        
+                        if (jobId != null && onReject != null) {
+                            OutlinedButton(
+                                onClick = {
+                                    onReject()
+                                    Toast.makeText(context, "Article rejeté", Toast.LENGTH_SHORT).show()
+                                },
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error
+                                )
+                            ) {
+                                Text("Rejeter", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
                     }
                 }
                 

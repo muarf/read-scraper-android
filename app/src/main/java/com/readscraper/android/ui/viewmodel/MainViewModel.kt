@@ -240,6 +240,28 @@ class MainViewModel(
         }
     }
     
+    fun rejectArticle(jobId: String) {
+        viewModelScope.launch {
+            val apiKey = _uiState.value.apiKey ?: return@launch
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            repository.rejectArticle(apiKey, jobId).fold(
+                onSuccess = { response ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        article = null,
+                        errorMessage = null
+                    )
+                },
+                onFailure = { error ->
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "Erreur lors du rejet de l'article"
+                    )
+                }
+            )
+        }
+    }
+    
     override fun onCleared() {
         super.onCleared()
         pollingJob?.cancel()
